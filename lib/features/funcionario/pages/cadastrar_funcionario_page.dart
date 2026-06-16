@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../shared/widgets/app_layout.dart';
 import '../models/funcionario_model.dart';
@@ -36,6 +38,10 @@ class _CadastrarFuncionarioPageState
   // Status
   bool ativo = true;
 
+  // Foto
+  String? _fotoPath;
+  final ImagePicker _imagePicker = ImagePicker();
+
   String? campoObrigatorio(
     String? valor,
     String campo,
@@ -43,8 +49,111 @@ class _CadastrarFuncionarioPageState
     if (valor == null || valor.trim().isEmpty) {
       return 'Informe $campo';
     }
-
     return null;
+  }
+
+  Future<void> _selecionarFoto() async {
+    final XFile? imagem = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 300,
+      maxHeight: 300,
+      imageQuality: 80,
+    );
+    if (imagem != null) {
+      setState(() => _fotoPath = imagem.path);
+    }
+  }
+
+  Future<void> _tirarFoto() async {
+    final XFile? imagem = await _imagePicker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 300,
+      maxHeight: 300,
+      imageQuality: 80,
+    );
+    if (imagem != null) {
+      setState(() => _fotoPath = imagem.path);
+    }
+  }
+
+  void _mostrarOpcoesFoto() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Adicionar Foto',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildOpcaoFoto(
+                    icon: Icons.photo_library,
+                    label: 'Galeria',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _selecionarFoto();
+                    },
+                  ),
+                  _buildOpcaoFoto(
+                    icon: Icons.camera_alt,
+                    label: 'Câmera',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _tirarFoto();
+                    },
+                  ),
+                  _buildOpcaoFoto(
+                    icon: Icons.delete_outline,
+                    label: 'Remover',
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _fotoPath = null);
+                    },
+                    color: Colors.red,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOpcaoFoto({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 40, color: color ?? Colors.blue),
+            const SizedBox(height: 8),
+            Text(label, style: TextStyle(color: color ?? Colors.blue)),
+          ],
+        ),
+      ),
+    );
   }
 
   Future selecionarDataNascimento() async {
@@ -88,6 +197,72 @@ class _CadastrarFuncionarioPageState
         '${data.year}';
   }
 
+  Widget _buildFotoCadastro() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Foto de Perfil',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _mostrarOpcoesFoto,
+          child: Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.grey.shade200,
+              border: Border.all(
+                color: Colors.blue.shade300,
+                width: 2,
+              ),
+            ),
+            child: _fotoPath != null && _fotoPath!.isNotEmpty
+                ? ClipOval(
+                    child: Image.file(
+                      File(_fotoPath!),
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_a_photo,
+                        size: 40,
+                        color: Colors.blue.shade300,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Adicionar',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade300,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Toque para adicionar/alterar foto',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade500,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppLayout(
@@ -121,6 +296,11 @@ class _CadastrarFuncionarioPageState
                       ),
                     ),
 
+                    const SizedBox(height: 24),
+
+                    // FOTO DE PERFIL
+                    _buildFotoCadastro(),
+                    
                     const SizedBox(height: 24),
 
                     // LINHA 1
@@ -370,6 +550,7 @@ class _CadastrarFuncionarioPageState
                             dataAdmissao: dataAdmissao!,
 
                             ativo: ativo,
+                            fotoPath: _fotoPath, // NOVO
                           );
 
                           context

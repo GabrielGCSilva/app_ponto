@@ -16,6 +16,7 @@ class Funcionario {
   final DateTime dataAdmissao;
 
   final bool ativo;
+  final String ?fotoPath;
 
   Funcionario({
     required this.id,
@@ -35,5 +36,6 @@ class Funcionario {
     required this.dataAdmissao,
 
     required this.ativo,
+    this.fotoPath
   });
 }
