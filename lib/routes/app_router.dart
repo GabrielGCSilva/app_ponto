@@ -1,3 +1,4 @@
+import 'package:app_ponto/features/funcionario/pages/cadastrar_funcionario_page.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/pages/login_page.dart';
 import '../features/dashboard/pages/dashboard_page.dart';
@@ -44,6 +45,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/configuracoes',
       builder: (context, state) => const ConfiguracoesPage(),
+    ),
+
+    // CADASTRO DE FUNCIONARIO  
+    GoRoute(
+      path: '/cadastrar-funcionario',
+      builder: (context, state) => const CadastrarFuncionarioPage(),
     ),
   ],
 );

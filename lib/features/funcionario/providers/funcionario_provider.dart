@@ -9,8 +9,14 @@ class FuncionarioProvider extends ChangeNotifier {
   List<Funcionario> get funcionarios => _funcionarios;
 
   void adicionar(Funcionario funcionario) {
-
     _funcionarios.add(funcionario);
+    notifyListeners();
+  }
+
+  void remover(String id) {
+    _funcionarios.removeWhere(
+      (f) => f.id == id,
+    );
 
     notifyListeners();
   }
