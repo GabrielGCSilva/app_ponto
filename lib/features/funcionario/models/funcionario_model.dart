@@ -38,4 +38,41 @@ class Funcionario {
     required this.ativo,
     this.fotoPath
   });
+
+  // Converte para Map do Firestore
+Map<String, dynamic> toFirestore() {
+  return {
+    'empresaId': empresaId,
+    'nome': nome,
+    'email': email,
+    'telefone': telefone,
+    'cargo': cargo,
+    'matricula': matricula,
+    'rg': rg,
+    'cpf': cpf,
+    'dataNascimento': dataNascimento.toIso8601String(),
+    'dataAdmissao': dataAdmissao.toIso8601String(),
+    'ativo': ativo,
+  };
 }
+
+// Cria a partir do Map do Firestore
+factory Funcionario.fromFirestore(Map<String, dynamic> data, String id) {
+  return Funcionario(
+    id: id,
+    empresaId: data['empresaId'] ?? '',
+    nome: data['nome'] ?? '',
+    email: data['email'] ?? '',
+    telefone: data['telefone'] ?? '',
+    cargo: data['cargo'] ?? '',
+    matricula: data['matricula'] ?? '',
+    rg: data['rg'] ?? '',
+    cpf: data['cpf'] ?? '',
+    dataNascimento: DateTime.parse(data['dataNascimento']),
+    dataAdmissao: DateTime.parse(data['dataAdmissao']),
+    ativo: data['ativo'] ?? true,
+    fotoPath: data['fotoURL'] ?? '',
+  );
+}
+}
+

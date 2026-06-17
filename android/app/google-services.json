@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "331527965536",
+    "project_id": "app-ponto-ggc",
+    "storage_bucket": "app-ponto-ggc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:331527965536:android:39d8cc095f6152f62fec05",
+        "android_client_info": {
+          "package_name": "com.example.app_ponto"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4rX9F_WZeFtro9Djh7qnDiz2y21KV1T4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

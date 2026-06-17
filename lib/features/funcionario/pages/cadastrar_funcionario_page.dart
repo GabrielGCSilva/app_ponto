@@ -263,6 +263,88 @@ class _CadastrarFuncionarioPageState
     );
   }
 
+  // 🔥 MÉTODO PARA SALVAR COM CONTROLE DE ESTADO
+  Future<void> _salvarFuncionario() async {
+  if (!_formKey.currentState!.validate()) {
+    return;
+  }
+
+  if (dataNascimento == null || dataAdmissao == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Preencha a data de nascimento e a data de admissão.',
+        ),
+      ),
+    );
+    return;
+  }
+
+  // 🔥 Guardar referências
+  final messenger = ScaffoldMessenger.of(context);
+  final router = GoRouter.of(context);
+  final provider = context.read<FuncionarioProvider>();
+
+  // 🔥 Mostrar loading
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(
+      child: CircularProgressIndicator(),
+    ),
+  );
+
+  try {
+    final funcionario = Funcionario(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      empresaId: empresaIdController.text,
+      nome: nomeController.text,
+      email: emailController.text,
+      telefone: telefoneController.text,
+      cargo: cargoController.text,
+      matricula: matriculaController.text,
+      rg: rgController.text,
+      cpf: cpfController.text,
+      dataNascimento: dataNascimento!,
+      dataAdmissao: dataAdmissao!,
+      ativo: ativo,
+      fotoPath: _fotoPath,
+    );
+
+    debugPrint('📝 Salvando funcionário: ${funcionario.nome}');
+    
+    await provider.adicionar(funcionario);
+
+    // 🔥 Fechar loading se o widget ainda estiver montado
+    if (mounted) {
+      Navigator.pop(context);
+      
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Funcionário cadastrado com sucesso!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      router.go('/funcionarios');
+    }
+  } catch (e) {
+    debugPrint('❌ Erro no cadastro: $e');
+    
+    // 🔥 Fechar loading em caso de erro
+    if (mounted) {
+      Navigator.pop(context);
+      
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Erro ao cadastrar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     return AppLayout(
@@ -509,67 +591,8 @@ class _CadastrarFuncionarioPageState
                       height: 50,
 
                       child: ElevatedButton.icon(
-                        onPressed: () {
-
-                          if (!_formKey.currentState!.validate()) {
-                            return;
-                          }
-
-                          if (dataNascimento == null ||
-                              dataAdmissao == null) {
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Preencha a data de nascimento e a data de admissão.',
-                                ),
-                              ),
-                            );
-
-                            return;
-                          }
-
-                          final funcionario = Funcionario(
-                            id: DateTime.now()
-                                .millisecondsSinceEpoch
-                                .toString(),
-
-                            empresaId: empresaIdController.text,
-
-                            nome: nomeController.text,
-                            email: emailController.text,
-                            telefone: telefoneController.text,
-
-                            cargo: cargoController.text,
-                            matricula: matriculaController.text,
-
-                            rg: rgController.text,
-                            cpf: cpfController.text,
-
-                            dataNascimento: dataNascimento!,
-                            dataAdmissao: dataAdmissao!,
-
-                            ativo: ativo,
-                            fotoPath: _fotoPath, // NOVO
-                          );
-
-                          context
-                              .read<FuncionarioProvider>()
-                              .adicionar(funcionario);
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Funcionário cadastrado com sucesso!',
-                              ),
-                            ),
-                          );
-
-                          context.go('/funcionarios');
-                        },
-
+                        onPressed: _salvarFuncionario, // 🔥 Chamando o método
                         icon: const Icon(Icons.save),
-
                         label: const Text(
                           'Salvar Funcionário',
                         ),

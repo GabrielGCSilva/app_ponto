@@ -66,6 +66,7 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
     _fotoPath = _funcionario.fotoPath;
   }
 
+  // ============ MÉTODOS DE FOTO ============
   Future<void> _selecionarFoto() async {
     final XFile? imagem = await _imagePicker.pickImage(
       source: ImageSource.gallery,
@@ -178,62 +179,302 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
     );
   }
 
-  void _salvarEdicao() {
-    if (!_formKey.currentState!.validate()) return;
+  // ============ MÉTODOS DE EXCLUSÃO ============
+  void _confirmarExclusao() {
+  // 🔥 Guardar referência do contexto do dialog
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: Row(
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.red.shade700,
+            size: 28,
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Excluir Funcionário',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tem certeza que deseja excluir o funcionário?',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.blue.shade100,
+                  child: Text(
+                    _funcionario.nome.isNotEmpty
+                        ? _funcionario.nome[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _funcionario.nome,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        _funcionario.cargo,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _funcionario.ativo 
+                        ? Colors.green.shade100 
+                        : Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _funcionario.ativo ? 'Ativo' : 'Inativo',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: _funcionario.ativo 
+                          ? Colors.green.shade700 
+                          : Colors.red.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Colors.red.shade700,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Esta ação não pode ser desfeita!',
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext), // 🔥 Usando dialogContext
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
+          child: const Text(
+            'Cancelar',
+            style: TextStyle(fontSize: 16),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(dialogContext); // 🔥 Usando dialogContext
+            _excluirFuncionario();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text(
+            'Excluir',
+            style: TextStyle(fontSize: 16),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
-    // Validar datas
-    if (_dataNascimento == null || _dataAdmissao == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Preencha todas as datas'),
-          backgroundColor: Colors.orange,
+  void _excluirFuncionario() async {
+  // 🔥 Guardar referências ANTES do async
+  final messenger = ScaffoldMessenger.of(context);
+  final router = GoRouter.of(context);
+  final provider = context.read<FuncionarioProvider>();
+  final nomeFuncionario = _funcionario.nome;
+  final idFuncionario = _funcionario.id;
+  
+  try {
+    await provider.remover(idFuncionario);
+    
+    // 🔥 Verificar se o widget ainda está montado
+    if (mounted) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              Text('Funcionário "$nomeFuncionario" excluído com sucesso!'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
         ),
       );
-      return;
+      
+      // 🔥 Pequeno delay para o SnackBar aparecer antes de navegar
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      if (mounted) {
+        router.go('/funcionarios');
+      }
     }
+  } catch (e) {
+    if (mounted) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Erro ao excluir: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
 
-    final provider = context.read<FuncionarioProvider>();
-    provider.atualizar(
-      _funcionario.id,
-      nome: _nomeController.text,
-      email: _emailController.text,
-      telefone: _telefoneController.text,
-      cargo: _cargoController.text,
-      matricula: _matriculaController.text,
-      rg: _rgController.text,
-      cpf: _cpfController.text,
-      dataNascimento: _dataNascimento,
-      dataAdmissao: _dataAdmissao,
-      ativo: _ativo,
-      fotoPath: _fotoPath,
-    );
+  // ============ MÉTODOS DE EDIÇÃO ============
+  void _salvarEdicao() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isEditing = false;
-      _funcionario = provider.buscarPorId(widget.funcionarioId)!;
-    });
-
+  if (_dataNascimento == null || _dataAdmissao == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Funcionário atualizado com sucesso!'),
-        backgroundColor: Colors.green,
+        content: Text('Preencha todas as datas'),
+        backgroundColor: Colors.orange,
       ),
     );
+    return;
   }
 
+  // 🔥 Guardar referências
+  final messenger = ScaffoldMessenger.of(context);
+  final provider = context.read<FuncionarioProvider>();
+
+  final funcionarioAtualizado = Funcionario(
+    id: _funcionario.id,
+    empresaId: _funcionario.empresaId,
+    nome: _nomeController.text,
+    email: _emailController.text,
+    telefone: _telefoneController.text,
+    cargo: _cargoController.text,
+    matricula: _matriculaController.text,
+    rg: _rgController.text,
+    cpf: _cpfController.text,
+    dataNascimento: _dataNascimento!,
+    dataAdmissao: _dataAdmissao!,
+    ativo: _ativo,
+    fotoPath: _fotoPath ?? _funcionario.fotoPath,
+  );
+  
+  try {
+    await provider.atualizar(funcionarioAtualizado);
+    
+    if (mounted) {
+      setState(() {
+        _isEditing = false;
+        _funcionario = funcionarioAtualizado;
+      });
+
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Funcionário atualizado com sucesso!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Erro ao atualizar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
+
+  // ============ BUILD ============
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar Funcionário' : 'Detalhes do Funcionário'),
         actions: [
+          // Botão Editar
           if (!_isEditing)
             IconButton(
               icon: const Icon(Icons.edit),
               onPressed: () {
                 setState(() {
                   _isEditing = true;
-                  // Atualizar controllers
                   _nomeController.text = _funcionario.nome;
                   _emailController.text = _funcionario.email;
                   _telefoneController.text = _funcionario.telefone;
@@ -248,6 +489,19 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
                 });
               },
             ),
+          
+          // Botão Excluir
+          if (!_isEditing)
+            IconButton(
+              icon: const Icon(
+                Icons.delete_outline,
+                color: Colors.red,
+              ),
+              onPressed: _confirmarExclusao,
+              tooltip: 'Excluir funcionário',
+            ),
+          
+          // Botão Cancelar (modo edição)
           if (_isEditing)
             IconButton(
               icon: const Icon(Icons.close),
@@ -267,6 +521,7 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
     );
   }
 
+  // ============ WIDGETS DE VISUALIZAÇÃO ============
   Widget _buildVisualizacao() {
     return Column(
       children: [
@@ -280,7 +535,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                // Avatar com foto
                 _buildAvatarVisualizacao(),
                 const SizedBox(height: 16),
                 Text(
@@ -440,7 +694,7 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
               : Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                   ),
                   child: const Icon(
                     Icons.visibility_off,
@@ -508,7 +762,7 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
     );
   }
 
-  // ============ FORMULÁRIO DE EDIÇÃO COMPLETO ============
+  // ============ FORMULÁRIO DE EDIÇÃO ============
   Widget _buildFormEdicao() {
     return Form(
       key: _formKey,
@@ -524,11 +778,9 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 20),
 
-          // Foto de Perfil
           _buildFotoEdicao(),
           const SizedBox(height: 20),
 
-          // Nome
           _buildTextField(
             controller: _nomeController,
             label: 'Nome Completo',
@@ -537,7 +789,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 16),
 
-          // Cargo
           _buildTextField(
             controller: _cargoController,
             label: 'Cargo',
@@ -546,7 +797,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 16),
 
-          // Email
           _buildTextField(
             controller: _emailController,
             label: 'Email',
@@ -560,7 +810,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 16),
 
-          // Telefone
           _buildTextField(
             controller: _telefoneController,
             label: 'Telefone',
@@ -570,7 +819,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 16),
 
-          // Matrícula
           _buildTextField(
             controller: _matriculaController,
             label: 'Matrícula',
@@ -579,7 +827,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 16),
 
-          // RG
           _buildTextField(
             controller: _rgController,
             label: 'RG',
@@ -588,7 +835,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 16),
 
-          // CPF
           _buildTextField(
             controller: _cpfController,
             label: 'CPF',
@@ -597,7 +843,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 16),
 
-          // Data de Nascimento
           _buildDataPicker(
             label: 'Data de Nascimento',
             data: _dataNascimento,
@@ -615,7 +860,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 16),
 
-          // Data de Admissão
           _buildDataPicker(
             label: 'Data de Admissão',
             data: _dataAdmissao,
@@ -633,7 +877,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 24),
 
-          // Status
           SwitchListTile(
             title: const Text(
               'Status do Funcionário',
@@ -657,7 +900,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 24),
 
-          // Botões
           Row(
             children: [
               Expanded(
