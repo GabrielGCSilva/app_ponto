@@ -8,6 +8,7 @@ import '../features/relatorios/pages/relatorios_page.dart';
 import '../features/configuracoes/pages/configuracoes_page.dart';
 import '../features/funcionario/pages/funcionarios_page.dart';
 
+
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
