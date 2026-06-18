@@ -7,13 +7,15 @@ import 'routes/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/funcionario/providers/funcionario_provider.dart';
 import 'features/ponto/providers/ponto_provider.dart';
-import 'firebase_options.dart';
 import 'features/ponto/providers/alerta_provider.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(
     MultiProvider(
@@ -44,7 +46,9 @@ class AppPonto extends StatelessWidget {
       routerConfig: appRouter,
       theme: AppTheme.lightTheme,
       locale: const Locale('pt', 'BR'),
-      supportedLocales: const [Locale('pt', 'BR')],
+      supportedLocales: const [
+        Locale('pt', 'BR'),
+      ],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

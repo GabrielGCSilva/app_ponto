@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/relatorio_service.dart';
 import '../models/relatorio_model.dart';
 import '../../funcionario/providers/funcionario_provider.dart';
 
 class RelatoriosPage extends StatefulWidget {
-  const RelatoriosPage({super.key});
+  final String? funcionarioId;
+  final int? mes;
+  final int? ano;
+
+  const RelatoriosPage({
+    super.key,
+    this.funcionarioId,
+    this.mes,
+    this.ano,
+  });
 
   @override
   State<RelatoriosPage> createState() => _RelatoriosPageState();
@@ -21,6 +32,28 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   bool _mostrarRelatorio = false;
 
   final RelatorioService _service = RelatorioService();
+
+  @override
+  void initState() {
+    super.initState();
+    // 🔥 Se recebeu parâmetros, usar eles
+    if (widget.funcionarioId != null) {
+      _funcionarioSelecionado = widget.funcionarioId;
+    }
+    if (widget.mes != null) {
+      _mesSelecionado = widget.mes!;
+    }
+    if (widget.ano != null) {
+      _anoSelecionado = widget.ano!;
+    }
+    
+    // 🔥 Se tiver funcionarioId, gerar relatório automaticamente
+    if (_funcionarioSelecionado != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _gerarRelatorio();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,7 +173,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth > 800) {
-          // 🔥 Tela grande: Row
           return Row(
             children: [
               Expanded(
@@ -160,7 +192,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             ],
           );
         } else {
-          // 🔥 Tela pequena: Column
           return Column(
             children: [
               _buildDropdownFuncionario(funcionarioProvider),
@@ -616,6 +647,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  // 🔥 EXPORTAR CSV
   void _exportarCSV() {
     if (_relatorio == null) return;
 
@@ -627,6 +659,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  // 🔥 COMPARTILHAR LINK
   void _compartilharLink() {
     if (_relatorio == null) return;
 
@@ -634,7 +667,15 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     final mes = _getNomeMes(_relatorio!.mes);
     final ano = _relatorio!.ano;
 
-    final link = 'https://admin.app-ponto.com/relatorios?funcionario=$nome&mes=$mes&ano=$ano';
+    final funcionarioId = _relatorio!.funcionarioId;
+    final mesNum = _relatorio!.mes;
+    final anoNum = _relatorio!.ano;
+    
+    // 🔥 LINK LOCAL (USANDO A PORTA ATUAL)
+    final linkLocal = '${Uri.base.origin}/#/relatorios?funcionarioId=$funcionarioId&mes=$mesNum&ano=$anoNum';
+    
+    // 🔥 LINK DE PRODUÇÃO
+    final linkProducao = 'https://admin.app-ponto.com/relatorios?funcionarioId=$funcionarioId&mes=$mesNum&ano=$anoNum';
 
     showDialog(
       context: context,
@@ -646,29 +687,120 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           children: [
             Text(
               'Relatório de $nome - $mes/$ano',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            const Text('Link para visualização online:'),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: SelectableText(
-                link,
-                style: const TextStyle(fontSize: 12),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 12),
             const Text(
-              '⚠️ Este link é público. Qualquer pessoa com o link pode visualizar.',
+              '📋 Selecione o tipo de link:',
               style: TextStyle(
-                fontSize: 11,
-                color: Colors.orange,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            
+            // 🔥 Opção 1: Link Local
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '🖥️ Desenvolvimento (Local)',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    linkLocal,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '✅ Funciona agora (porta ${Uri.base.port})',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.blue.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // 🔥 Opção 2: Link de Produção
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '🚀 Produção (Publicado)',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    linkProducao,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '✅ Funciona quando o app estiver publicado em produção',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.green.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '💡 Use o link de "Desenvolvimento" para testar agora.',
+                      style: TextStyle(fontSize: 12, color: Colors.orange),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -681,22 +813,93 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pop(dialogContext);
-              _copiarLink(link);
+              _copiarLink(linkLocal);
             },
-            icon: const Icon(Icons.copy),
-            label: const Text('Copiar Link'),
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('Copiar Link Local'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade700,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _copiarLink(linkProducao);
+            },
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('Copiar Link Produção'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade700,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _abrirLink(linkLocal);
+            },
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: const Text('Abrir Local'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade700,
+              foregroundColor: Colors.white,
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _copiarLink(String link) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ Link copiado para a área de transferência!'),
-        backgroundColor: Colors.green,
-      ),
-    );
+  // 🔥 COPIAR LINK PARA ÁREA DE TRANSFERÊNCIA
+  void _copiarLink(String link) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: link));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text('✅ Link copiado para a área de transferência!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro ao copiar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // 🔥 ABRIR LINK NO NAVEGADOR
+  void _abrirLink(String link) async {
+    try {
+      final Uri url = Uri.parse(link);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Não foi possível abrir o link';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro ao abrir: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
