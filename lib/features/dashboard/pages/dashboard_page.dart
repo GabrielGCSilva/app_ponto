@@ -1,213 +1,145 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../../shared/widgets/app_layout.dart';
+import '../../funcionario/providers/funcionario_provider.dart';
+import '../../ponto/providers/ponto_provider.dart';
+import '../../ponto/providers/alerta_provider.dart';
+import '../../ponto/models/registro_ponto_model.dart';
+import '../../ponto/models/alerta_ponto_model.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  @override
+  void initState() {
+    super.initState();
+    _carregarDados();
+  }
+
+  Future<void> _carregarDados() async {
+    final funcionarioProvider = context.read<FuncionarioProvider>();
+    final pontoProvider = context.read<PontoProvider>();
+    final alertaProvider = context.read<AlertaProvider>();
+
+    await funcionarioProvider.carregarFuncionarios();
+    await pontoProvider.carregarRegistros();
+    await alertaProvider.carregarAlertas();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final funcionarioProvider = context.watch<FuncionarioProvider>();
+    final pontoProvider = context.watch<PontoProvider>();
+    final alertaProvider = context.watch<AlertaProvider>();
+
+    final totalFuncionarios = funcionarioProvider.funcionarios.length;
+    final totalAlertas = alertaProvider.totalAlertas;
+
+    final hoje = DateTime.now();
+    final inicioDia = DateTime(hoje.year, hoje.month, hoje.day);
+    final pontosHoje = pontoProvider.registros
+        .where((r) => r.dataHora.isAfter(inicioDia))
+        .length;
+
+    final horasExtras = '18h';
+
     return AppLayout(
       titulo: 'Dashboard',
-
       body: Padding(
         padding: const EdgeInsets.all(20),
-
-        child: ListView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Cards de Estatísticas
+            Row(
+              children: [
+                _buildStatCard(
+                  'Funcionários',
+                  '$totalFuncionarios',
+                  Icons.people,
+                  Colors.blue,
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Pontos Hoje',
+                  '$pontosHoje',
+                  Icons.access_time,
+                  Colors.green,
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Alertas',
+                  '$totalAlertas',
+                  Icons.warning,
+                  Colors.red,
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Horas Extras',
+                  horasExtras,
+                  Icons.timer,
+                  Colors.orange,
+                ),
+              ],
+            ),
 
-            // ==========================
-            // CARDS PRINCIPAIS
-            // ==========================
-            SizedBox(
-              height: 170,
+            const SizedBox(height: 24),
 
-              child: GridView.count(
-                physics: const NeverScrollableScrollPhysics(),
+            // Ações Rápidas
+            const Text(
+              '⚡ Ações Rápidas',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildActionButton(
+                  context,
+                  'Novo Funcionário',
+                  Icons.person_add,
+                  () => context.go('/cadastrar-funcionario'),
+                ),
+                const SizedBox(width: 12),
+                _buildActionButton(
+                  context,
+                  'Registrar Ponto',
+                  Icons.fingerprint,
+                  () => context.go('/ponto'),
+                ),
+                const SizedBox(width: 12),
+                _buildActionButton(
+                  context,
+                  'Relatórios',
+                  Icons.assessment,
+                  () => context.go('/relatorios'),
+                ),
+              ],
+            ),
 
-                crossAxisCount: 4,
-                childAspectRatio: 1.8,
+            const SizedBox(height: 24),
 
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-
-                children: const [
-
-                  DashboardCard(
-                    titulo: 'Funcionários',
-                    valor: '25',
-                    icone: Icons.people,
+            // Últimos Registros + Alertas
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: _buildUltimosRegistros(pontoProvider),
                   ),
-
-                  DashboardCard(
-                    titulo: 'Pontos Hoje',
-                    valor: '22',
-                    icone: Icons.access_time,
-                  ),
-
-                  DashboardCard(
-                    titulo: 'Alertas',
-                    valor: '3',
-                    icone: Icons.warning,
-                    cor: Colors.orange,
-                  ),
-
-                  DashboardCard(
-                    titulo: 'Horas Extras',
-                    valor: '18h',
-                    icone: Icons.schedule,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 1,
+                    child: _buildAlertasRecentes(alertaProvider),
                   ),
                 ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // AÇÕES RÁPIDAS
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-
-                    const Text(
-                      'Ações Rápidas',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-
-                      children: [
-
-                        AcaoRapidaCard(
-                          titulo: 'Novo Funcionário',
-                          icone: Icons.person_add,
-                          onTap: () {
-                            context.go('/funcionarios');
-                          },
-                        ),
-
-                        AcaoRapidaCard(
-                          titulo: 'Registrar Ponto',
-                          icone: Icons.access_time,
-                          onTap: () {
-                            context.go('/ponto');
-                          },
-                        ),
-
-                        AcaoRapidaCard(
-                          titulo: 'Relatórios',
-                          icone: Icons.description,
-                          onTap: () {
-                            context.go('/relatorios');
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ÚLTIMOS REGISTROS
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-
-                    const Text(
-                      'Últimos Registros',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const Divider(),
-
-                    RegistroItem(
-                      nome: 'João Silva',
-                      evento: 'Entrada',
-                      horario: '08:01',
-                    ),
-
-                    RegistroItem(
-                      nome: 'Maria Souza',
-                      evento: 'Saída',
-                      horario: '17:59',
-                    ),
-
-                    RegistroItem(
-                      nome: 'Pedro Santos',
-                      evento: 'Entrada',
-                      horario: '08:10',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ALERTAS RECENTES
-
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                  children: [
-
-                    const Text(
-                      'Alertas Recentes',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const Divider(),
-
-                    const AlertaItem(
-                      categoria: 'REGISTRO AUSENTE',
-                      texto: 'João Silva não registrou saída ontem.',
-                      dataHora: '11/06/2026 18:00',
-                      icone: Icons.warning_amber,
-                    ),
-
-                    const AlertaItem(
-                      categoria: 'REGISTRO AUSENTE',
-                      texto: 'Maria Souza não registrou entrada hoje.',
-                      dataHora: '12/06/2026 08:00',
-                      icone: Icons.warning_amber,
-                    ),
-
-                    const AlertaItem(
-                      categoria: 'REGISTRO DUPLICADO',
-                      texto: 'Pedro Santos possui registro duplicado.',
-                      dataHora: '12/06/2026 09:15',
-                      icone: Icons.error_outline,
-                    ),
-                  ],
-                ),
               ),
             ),
           ],
@@ -215,47 +147,46 @@ class DashboardPage extends StatelessWidget {
       ),
     );
   }
-}
 
-class AcaoRapidaCard extends StatelessWidget {
-  final String titulo;
-  final IconData icone;
-  final VoidCallback onTap;
-
-  const AcaoRapidaCard({
-    super.key,
-    required this.titulo,
-    required this.icone,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Expanded(
       child: Card(
-        elevation: 2,
-
-        child: SizedBox(
-          width: 180,
-          height: 120,
-
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
-              Icon(
-                icone,
-                size: 40,
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: color, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 10),
-
+              const SizedBox(height: 8),
               Text(
-                titulo,
-                textAlign: TextAlign.center,
+                label,
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
             ],
           ),
@@ -263,150 +194,344 @@ class AcaoRapidaCard extends StatelessWidget {
       ),
     );
   }
-}
 
-class RegistroItem extends StatelessWidget {
-  final String nome;
-  final String evento;
-  final String horario;
+  Widget _buildActionButton(
+    BuildContext context,
+    String label,
+    IconData icon,
+    VoidCallback onPressed,
+  ) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
 
-  const RegistroItem({
-    super.key,
-    required this.nome,
-    required this.evento,
-    required this.horario,
-  });
+  Widget _buildUltimosRegistros(PontoProvider provider) {
+    final registros = provider.registros.take(5).toList();
 
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: const Icon(Icons.access_time),
-
-      title: Text(nome),
-
-      subtitle: Text(evento),
-
-      trailing: Text(
-        horario,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '📋 Últimos Registros',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            if (provider.carregando)
+              const Center(child: CircularProgressIndicator())
+            else if (registros.isEmpty)
+              const Center(
+                child: Text(
+                  'Nenhum registro encontrado',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            else
+              ...registros.map((registro) => _buildRegistroItem(registro)),
+          ],
         ),
       ),
     );
   }
-}
 
-class AlertaItem extends StatelessWidget {
-  final String categoria;
-  final String texto;
-  final String dataHora;
-  final IconData icone;
-
-  const AlertaItem({
-    super.key,
-    required this.categoria,
-    required this.texto,
-    required this.dataHora,
-    required this.icone,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(
-        icone,
-        color: Colors.orange,
-      ),
-
-      title: Text(
-        categoria,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
+  // 🔥 MÉTODO ATUALIZADO COM DATA
+  Widget _buildRegistroItem(RegistroPonto registro) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
         children: [
-
-          const SizedBox(height: 4),
-
-          Text(texto),
-
-          const SizedBox(height: 4),
-
-          Text(
-            dataHora,
-            style: const TextStyle(
-              color: Colors.grey,
-              fontSize: 12,
+          Container(
+            width: 4,
+            height: 50,
+            decoration: BoxDecoration(
+              color: registro.tipo.color,
+              borderRadius: BorderRadius.circular(4),
             ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  registro.funcionarioNome,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                Row(
+                  children: [
+                    Icon(
+                      registro.tipo.icon,
+                      size: 14,
+                      color: registro.tipo.color,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      registro.tipo.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                // 🔥 DATA DO REGISTRO
+                Text(
+                  registro.dataFormatada,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                registro.horaFormatada,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              // 🔥 DIA DA SEMANA (opcional)
+              Text(
+                _getDiaSemana(registro.dataHora.weekday),
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
-}
 
-class DashboardCard extends StatelessWidget {
-  final String titulo;
-  final String valor;
-  final IconData icone;
-  final Color cor;
+  // 🔥 Método auxiliar para dia da semana
+  String _getDiaSemana(int weekday) {
+    const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    return dias[weekday - 1];
+  }
 
-  const DashboardCard({
-    super.key,
-    required this.titulo,
-    required this.valor,
-    required this.icone,
-    this.cor = Colors.black,
-  });
+  Widget _buildAlertasRecentes(AlertaProvider provider) {
+    final alertas = provider.alertas.take(5).toList();
 
-  @override
-  Widget build(BuildContext context) {
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-
-                Text(
-                  titulo,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                const Text(
+                  '🔔 Alertas Recentes',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-
-                const SizedBox(height: 8),
-
-                Text(
-                  valor,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
+                if (provider.totalAlertas > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${provider.totalAlertas} novo(s)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red.shade700,
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
+            const SizedBox(height: 12),
+            if (provider.carregando)
+              const Center(child: CircularProgressIndicator())
+            else if (alertas.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Icon(Icons.check_circle, size: 40, color: Colors.green),
+                      SizedBox(height: 8),
+                      Text(
+                        'Tudo certo!',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                      Text(
+                        'Nenhum alerta pendente',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ...alertas.map((alerta) => _buildAlertaItem(alerta)),
+          ],
+        ),
+      ),
+    );
+  }
 
-            Icon(
-              icone,
-              size: 40,
-              color: cor,
+  Widget _buildAlertaItem(AlertaPonto alerta) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.red.shade700,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'REGISTRO AUSENTE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                  Text(
+                    '${alerta.funcionarioNome} não registrou ${_getTipoDescricao(alerta.tipo)}.',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    alerta.dataHoraFormatada,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.check_circle, color: Colors.green),
+              onPressed: () => _resolverAlerta(alerta),
+              tooltip: 'Marcar como resolvido',
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _getTipoDescricao(TipoAlerta tipo) {
+    switch (tipo) {
+      case TipoAlerta.entradaAusente:
+        return 'entrada';
+      case TipoAlerta.saidaAusente:
+        return 'saída';
+      case TipoAlerta.almocoAusente:
+        return 'saída para almoço';
+      case TipoAlerta.retornoAusente:
+        return 'retorno do almoço';
+    }
+  }
+
+  Future<void> _resolverAlerta(AlertaPonto alerta) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final provider = context.read<AlertaProvider>();
+
+    final justificativa = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Resolver Alerta'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Alerta: ${alerta.funcionarioNome} - ${alerta.tipo.label}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            const Text('Informe a justificativa para resolver este alerta:'),
+            const SizedBox(height: 8),
+            const TextField(
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Ex: Funcionário justificou...',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext, 'Justificado pelo admin');
+            },
+            child: const Text('Resolver'),
+          ),
+        ],
+      ),
+    );
+
+    if (justificativa != null && mounted) {
+      try {
+        await provider.resolverAlerta(alerta.id, justificativa);
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('✅ Alerta resolvido com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro ao resolver: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
