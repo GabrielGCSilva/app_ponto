@@ -213,37 +213,49 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildUltimosRegistros(PontoProvider provider) {
-    final registros = provider.registros.take(5).toList();
+  final registros = provider.registros.take(5).toList();
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '📋 Últimos Registros',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+  return Card(
+    elevation: 2,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '📋 Últimos Registros',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(height: 12),
-            if (provider.carregando)
-              const Center(child: CircularProgressIndicator())
-            else if (registros.isEmpty)
-              const Center(
-                child: Text(
-                  'Nenhum registro encontrado',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              )
-            else
-              ...registros.map((registro) => _buildRegistroItem(registro)),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: SingleChildScrollView( // 🔥 ENVOLVER COM SingleChildScrollView
+              child: Column(
+                children: provider.carregando
+                    ? [const Center(child: CircularProgressIndicator())]
+                    : registros.isEmpty
+                        ? [
+                            const Center(
+                              child: Text(
+                                'Nenhum registro encontrado',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          ]
+                        : registros.map((registro) => _buildRegistroItem(registro)).toList(),
+              ),
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // 🔥 MÉTODO ATUALIZADO COM DATA
   Widget _buildRegistroItem(RegistroPonto registro) {
