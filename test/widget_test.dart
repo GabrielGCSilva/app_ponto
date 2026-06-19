@@ -1,13 +1,12 @@
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app_ponto/main.dart';
 
 void main() {
   testWidgets('App Ponto test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const AppPonto());
+    // 🔥 Usar MyApp em vez de AppPonto
+    await tester.pumpWidget(const MyApp(isLoggedIn: false));
 
-    // Verify that the app starts correctly
-    expect(find.text('App Ponto'), findsNothing);
+    // Verificar se a tela de login aparece
+    expect(find.text('App Ponto'), findsOneWidget);
   });
 }
