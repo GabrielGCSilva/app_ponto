@@ -477,113 +477,146 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Widget _buildTabela(RelatorioMensal relatorio) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columnSpacing: 10,
-          headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
-          columns: const [
-            DataColumn(label: Text('DATA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('EVENTO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('ENTRADA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('S.ALMOÇO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('R.ALMOÇO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('SAÍDA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('TOTAL PREVISTO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('TOTAL EFETIVO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('HORAS DEVIDAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('HORAS EXTRAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('EXTRA 60%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('EXTRA 100%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-            DataColumn(label: Text('LOCALIZAÇÃO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-          ],
-          rows: relatorio.dias.map((dia) {
-            final totalPrevisto = dia.totalPrevisto;
-            final totalEfetivo = dia.total;
-            
-            final previstoDur = CalculadoraHoras.stringToDuration(totalPrevisto);
-            final efetivoDur = CalculadoraHoras.stringToDuration(totalEfetivo);
-            final diff = efetivoDur - previstoDur;
-            
-            String horasDevidasDia = '00:00';
-            String horasExtrasDia = '00:00';
-            
-            if (diff.isNegative) {
-              horasDevidasDia = CalculadoraHoras.durationToString(diff.abs());
-            } else if (diff > Duration.zero) {
-              horasExtrasDia = CalculadoraHoras.durationToString(diff);
-            }
-            
-            String extra60Dia = '00:00';
-            String extra100Dia = '00:00';
-            if (dia.diaSemana == 'Sáb') {
-              final total = CalculadoraHoras.stringToDuration(dia.total);
-              final extra60 = (total.inMinutes * 0.6).round();
-              extra60Dia = CalculadoraHoras.durationToString(Duration(minutes: extra60));
-            } else if (dia.diaSemana == 'Dom') {
-              extra100Dia = dia.total;
-            }
+  return Container(
+    decoration: BoxDecoration(
+      border: Border.all(color: Colors.grey.shade400),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 10,
+        horizontalMargin: 8,
+        headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
+        border: TableBorder.all(
+          color: Colors.grey.shade400,
+          width: 1,
+        ), // 🔥 ADICIONA BORDAS EM TODAS AS CÉLULAS
+        columns: const [
+          DataColumn(
+            label: Text('DATA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('EVENTO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('ENTRADA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('S.ALMOÇO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('R.ALMOÇO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('SAÍDA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('TOTAL PREVISTO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('TOTAL EFETIVO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('HORAS DEVIDAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('HORAS EXTRAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('EXTRA 60%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('EXTRA 100%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+          DataColumn(
+            label: Text('LOCALIZAÇÃO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+          ),
+        ],
+        rows: relatorio.dias.map((dia) {
+          final totalPrevisto = dia.totalPrevisto;
+          final totalEfetivo = dia.total;
+          
+          final previstoDur = CalculadoraHoras.stringToDuration(totalPrevisto);
+          final efetivoDur = CalculadoraHoras.stringToDuration(totalEfetivo);
+          final diff = efetivoDur - previstoDur;
+          
+          String horasDevidasDia = '00:00';
+          String horasExtrasDia = '00:00';
+          
+          if (diff.isNegative) {
+            horasDevidasDia = CalculadoraHoras.durationToString(diff.abs());
+          } else if (diff > Duration.zero) {
+            horasExtrasDia = CalculadoraHoras.durationToString(diff);
+          }
+          
+          String extra60Dia = '00:00';
+          String extra100Dia = '00:00';
+          if (dia.diaSemana == 'Sáb') {
+            final total = CalculadoraHoras.stringToDuration(dia.total);
+            final extra60 = (total.inMinutes * 0.6).round();
+            extra60Dia = CalculadoraHoras.durationToString(Duration(minutes: extra60));
+          } else if (dia.diaSemana == 'Dom') {
+            extra100Dia = dia.total;
+          }
 
-            return DataRow(
-              color: dia.evento == 'FALTA'
-                  ? WidgetStateProperty.all(Colors.red.shade50)
-                  : dia.evento == 'FOLGA'
-                      ? WidgetStateProperty.all(Colors.green.shade50)
-                      : null,
-              cells: [
-                DataCell(Text(
-                  '${dia.data.day.toString().padLeft(2, '0')}/${dia.data.month.toString().padLeft(2, '0')}',
-                  style: const TextStyle(fontSize: 11),
-                )),
-                DataCell(Text(dia.evento ?? '', style: const TextStyle(fontSize: 11))),
-                DataCell(Text(dia.entrada, style: const TextStyle(fontSize: 11))),
-                DataCell(Text(dia.saidaAlmoco, style: const TextStyle(fontSize: 11))),
-                DataCell(Text(dia.retornoAlmoco, style: const TextStyle(fontSize: 11))),
-                DataCell(Text(dia.saida, style: const TextStyle(fontSize: 11))),
-                DataCell(Text(dia.total, style: TextStyle(
-                  fontWeight: dia.total != '00:00' ? FontWeight.bold : FontWeight.normal,
-                  color: dia.total != '00:00' ? Colors.blue.shade700 : Colors.grey,
-                  fontSize: 11,
-                ))),
-                DataCell(Text(totalPrevisto, style: const TextStyle(fontSize: 11))),
-                DataCell(Text(totalEfetivo, style: const TextStyle(fontSize: 11))),
-                DataCell(Text(horasDevidasDia, style: TextStyle(
-                  fontSize: 11,
-                  color: horasDevidasDia != '00:00' ? Colors.red : Colors.grey,
-                ))),
-                DataCell(Text(horasExtrasDia, style: TextStyle(
-                  fontSize: 11,
-                  color: horasExtrasDia != '00:00' ? Colors.green : Colors.grey,
-                ))),
-                DataCell(Text(extra60Dia, style: TextStyle(
-                  fontSize: 11,
-                  color: extra60Dia != '00:00' ? Colors.orange : Colors.grey,
-                ))),
-                DataCell(Text(extra100Dia, style: TextStyle(
-                  fontSize: 11,
-                  color: extra100Dia != '00:00' ? Colors.purple : Colors.grey,
-                ))),
-                DataCell(Container(
-                  constraints: const BoxConstraints(maxWidth: 150),
-                  child: Text(
-                    dia.localizacao,
-                    style: const TextStyle(fontSize: 10),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                )),
-              ],
-            );
-          }).toList(),
-        ),
+          return DataRow(
+            color: dia.evento == 'FALTA'
+                ? WidgetStateProperty.all(Colors.red.shade50)
+                : dia.evento == 'FOLGA'
+                    ? WidgetStateProperty.all(Colors.green.shade50)
+                    : null,
+            cells: [
+              DataCell(Text(
+                '${dia.data.day.toString().padLeft(2, '0')}/${dia.data.month.toString().padLeft(2, '0')}',
+                style: const TextStyle(fontSize: 11),
+              )),
+              DataCell(Text(dia.evento ?? '', style: const TextStyle(fontSize: 11))),
+              DataCell(Text(dia.entrada, style: const TextStyle(fontSize: 11))),
+              DataCell(Text(dia.saidaAlmoco, style: const TextStyle(fontSize: 11))),
+              DataCell(Text(dia.retornoAlmoco, style: const TextStyle(fontSize: 11))),
+              DataCell(Text(dia.saida, style: const TextStyle(fontSize: 11))),
+              DataCell(Text(dia.total, style: TextStyle(
+                fontWeight: dia.total != '00:00' ? FontWeight.bold : FontWeight.normal,
+                color: dia.total != '00:00' ? Colors.blue.shade700 : Colors.grey,
+                fontSize: 11,
+              ))),
+              DataCell(Text(totalPrevisto, style: const TextStyle(fontSize: 11))),
+              DataCell(Text(totalEfetivo, style: const TextStyle(fontSize: 11))),
+              DataCell(Text(horasDevidasDia, style: TextStyle(
+                fontSize: 11,
+                color: horasDevidasDia != '00:00' ? Colors.red : Colors.grey,
+              ))),
+              DataCell(Text(horasExtrasDia, style: TextStyle(
+                fontSize: 11,
+                color: horasExtrasDia != '00:00' ? Colors.green : Colors.grey,
+              ))),
+              DataCell(Text(extra60Dia, style: TextStyle(
+                fontSize: 11,
+                color: extra60Dia != '00:00' ? Colors.orange : Colors.grey,
+              ))),
+              DataCell(Text(extra100Dia, style: TextStyle(
+                fontSize: 11,
+                color: extra100Dia != '00:00' ? Colors.purple : Colors.grey,
+              ))),
+              DataCell(Container(
+                constraints: const BoxConstraints(maxWidth: 150),
+                child: Text(
+                  dia.localizacao,
+                  style: const TextStyle(fontSize: 10),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              )),
+            ],
+          );
+        }).toList(),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildTotais(RelatorioMensal relatorio) {
     final corHorasDevidas = relatorio.horasDevidas != '00:00' ? Colors.red : Colors.grey;
@@ -674,8 +707,8 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     // 🔥 LINK LOCAL (USANDO A PORTA ATUAL)
     final linkLocal = '${Uri.base.origin}/#/relatorios?funcionarioId=$funcionarioId&mes=$mesNum&ano=$anoNum';
     
-    // 🔥 LINK DE PRODUÇÃO
-    final linkProducao = 'https://admin.app-ponto.com/relatorios?funcionarioId=$funcionarioId&mes=$mesNum&ano=$anoNum';
+    // 🔥 Substitua pelo link do Firebase Hosting
+    final linkProducao = 'https://app-ponto-ggc.web.app/relatorios?funcionarioId=$funcionarioId&mes=$mesNum&ano=$anoNum';
 
     showDialog(
       context: context,
