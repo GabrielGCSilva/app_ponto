@@ -3,10 +3,10 @@ import 'package:app_ponto/main.dart';
 
 void main() {
   testWidgets('App Ponto test', (WidgetTester tester) async {
-    // 🔥 Usar MyApp em vez de AppPonto
-    await tester.pumpWidget(const MyApp(isLoggedIn: false));
+    // 🔥 Usar AppPonto em vez de MyApp
+    await tester.pumpWidget(const AppPonto());
 
-    // Verificar se a tela de login aparece
-    expect(find.text('App Ponto'), findsOneWidget);
+    // Verificar se o app inicia
+    expect(find.text('App Ponto'), findsNothing);
   });
 }

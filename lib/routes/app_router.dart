@@ -7,35 +7,42 @@ import '../features/configuracoes/pages/configuracoes_page.dart';
 import '../features/funcionario/pages/funcionarios_page.dart';
 import '../features/funcionario/pages/cadastrar_funcionario_page.dart';
 import '../features/funcionario/pages/funcionario_detalhes_page.dart';
+import '../features/funcionario_mobile/pages/home_page.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/login',
   routes: [
-    // LOGIN
+    // 🔥 LOGIN
     GoRoute(
-      path: '/',
+      path: '/login',
       builder: (context, state) => const LoginPage(),
     ),
 
-    // DASHBOARD
+    // 🔥 MOBILE - FUNCIONÁRIO
+    GoRoute(
+      path: '/home',
+      builder: (context, state) => const HomePage(),
+    ),
+
+    // 🔥 ADMIN - DASHBOARD
     GoRoute(
       path: '/dashboard',
       builder: (context, state) => const DashboardPage(),
     ),
 
-    // FUNCIONÁRIOS
+    // 🔥 ADMIN - FUNCIONÁRIOS
     GoRoute(
       path: '/funcionarios',
       builder: (context, state) => const FuncionariosPage(),
     ),
 
-    // CADASTRO DE FUNCIONARIO
+    // 🔥 ADMIN - CADASTRAR FUNCIONÁRIO
     GoRoute(
       path: '/cadastrar-funcionario',
       builder: (context, state) => const CadastrarFuncionarioPage(),
     ),
 
-    // DETALHES DO FUNCIONÁRIO
+    // 🔥 ADMIN - DETALHES DO FUNCIONÁRIO
     GoRoute(
       path: '/funcionario-detalhes/:id',
       builder: (context, state) {
@@ -44,13 +51,13 @@ final appRouter = GoRouter(
       },
     ),
 
-    // PONTO
+    // 🔥 ADMIN - REGISTRO DE PONTO
     GoRoute(
       path: '/ponto',
       builder: (context, state) => const RegistroPontoPage(),
     ),
 
-    // 🔥 RELATÓRIOS
+    // 🔥 ADMIN - RELATÓRIOS
     GoRoute(
       path: '/relatorios',
       builder: (context, state) {
@@ -69,7 +76,7 @@ final appRouter = GoRouter(
       },
     ),
 
-    // CONFIGURAÇÕES
+    // 🔥 ADMIN - CONFIGURAÇÕES
     GoRoute(
       path: '/configuracoes',
       builder: (context, state) => const ConfiguracoesPage(),
