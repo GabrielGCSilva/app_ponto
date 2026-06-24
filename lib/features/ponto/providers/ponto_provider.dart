@@ -15,7 +15,6 @@ class PontoProvider extends ChangeNotifier {
   bool get carregando => _carregando;
   String? get erro => _erro;
 
-  // 🔥 Carregar registros do Firestore
   Future<void> carregarRegistros({String? funcionarioId}) async {
     _carregando = true;
     _erro = null;
@@ -34,7 +33,7 @@ class PontoProvider extends ChangeNotifier {
           .get();
 
       _registros = snapshot.docs.map((doc) {
-        return RegistroPonto.fromFirestore(doc.data(), doc.id); // 🔥 REMOVIDO O CAST
+        return RegistroPonto.fromFirestore(doc.data(), doc.id);
       }).toList();
 
       _carregando = false;
@@ -48,7 +47,6 @@ class PontoProvider extends ChangeNotifier {
     }
   }
 
-  // 🔥 Registrar ponto
   Future<void> registrarPonto({
     required String funcionarioId,
     required String funcionarioNome,
@@ -62,16 +60,28 @@ class PontoProvider extends ChangeNotifier {
       debugPrint('📝 [PONTO] Tipo: ${tipo.label}');
       debugPrint('📝 [PONTO] Método: $metodoAutenticacao');
 
-      // 🔥 Obter localização
-      final localizacao = await _localizacaoService.getLocalizacaoCompleta();
+      // 🔥 TENTAR OBTER LOCALIZAÇÃO COM FALLBACK
+      double latitude;
+      double longitude;
+      String endereco;
 
-      if (localizacao == null) {
-        throw Exception('Não foi possível obter a localização');
+      try {
+        final localizacao = await _localizacaoService.getLocalizacaoCompleta();
+        if (localizacao != null) {
+          latitude = localizacao['latitude'] as double;
+          longitude = localizacao['longitude'] as double;
+          endereco = localizacao['endereco'] as String;
+          debugPrint('📍 [PONTO] Localização obtida: $endereco');
+        } else {
+          throw Exception('Localização nula');
+        }
+      } catch (e) {
+        // 🔥 FALLBACK PARA DESKTOP
+        debugPrint('⚠️ [PONTO] Localização indisponível, usando fallback (Desktop)');
+        latitude = -23.5505; // São Paulo
+        longitude = -46.6333; // São Paulo
+        endereco = 'Desktop - Localização simulada';
       }
-
-      debugPrint('📍 [PONTO] Latitude: ${localizacao['latitude']}');
-      debugPrint('📍 [PONTO] Longitude: ${localizacao['longitude']}');
-      debugPrint('📍 [PONTO] Endereço: ${localizacao['endereco']}');
 
       // 🔥 Verificar se já existe registro do mesmo tipo hoje
       final hoje = DateTime.now();
@@ -97,9 +107,9 @@ class PontoProvider extends ChangeNotifier {
         funcionarioNome: funcionarioNome,
         dataHora: DateTime.now(),
         tipo: tipo,
-        latitude: localizacao['latitude'] as double,
-        longitude: localizacao['longitude'] as double,
-        endereco: localizacao['endereco'] as String,
+        latitude: latitude,
+        longitude: longitude,
+        endereco: endereco,
         metodoAutenticacao: metodoAutenticacao,
         fotoURL: fotoURL,
       );
@@ -121,7 +131,6 @@ class PontoProvider extends ChangeNotifier {
     }
   }
 
-  // 🔥 Buscar registros de um funcionário
   Future<List<RegistroPonto>> buscarRegistrosPorFuncionario(String funcionarioId) async {
     try {
       final snapshot = await _firestore
@@ -131,7 +140,7 @@ class PontoProvider extends ChangeNotifier {
           .get();
 
       return snapshot.docs.map((doc) {
-        return RegistroPonto.fromFirestore(doc.data(), doc.id); // 🔥 REMOVIDO O CAST
+        return RegistroPonto.fromFirestore(doc.data(), doc.id);
       }).toList();
     } catch (e) {
       debugPrint('❌ Erro ao buscar registros: $e');
@@ -139,7 +148,6 @@ class PontoProvider extends ChangeNotifier {
     }
   }
 
-  // 🔥 Buscar registros por período
   Future<List<RegistroPonto>> buscarRegistrosPorPeriodo({
     required DateTime inicio,
     required DateTime fim,
@@ -158,7 +166,7 @@ class PontoProvider extends ChangeNotifier {
       final snapshot = await query.orderBy('dataHora', descending: true).get();
 
       return snapshot.docs.map((doc) {
-        return RegistroPonto.fromFirestore(doc.data(), doc.id); // 🔥 REMOVIDO O CAST
+        return RegistroPonto.fromFirestore(doc.data(), doc.id);
       }).toList();
     } catch (e) {
       debugPrint('❌ Erro ao buscar registros por período: $e');

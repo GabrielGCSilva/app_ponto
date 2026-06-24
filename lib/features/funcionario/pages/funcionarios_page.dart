@@ -5,12 +5,36 @@ import 'package:provider/provider.dart';
 import '../../../shared/widgets/app_layout.dart';
 import '../providers/funcionario_provider.dart';
 
-class FuncionariosPage extends StatelessWidget {
+// 🔥 ENUM PARA FILTRO
+enum FiltroFuncionario { todos, ativos, inativos }
+
+class FuncionariosPage extends StatefulWidget {
   const FuncionariosPage({super.key});
+
+  @override
+  State<FuncionariosPage> createState() => _FuncionariosPageState();
+}
+
+class _FuncionariosPageState extends State<FuncionariosPage> {
+  FiltroFuncionario _filtroAtual = FiltroFuncionario.ativos;
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<FuncionarioProvider>();
+
+    // 🔥 Filtrar funcionários
+    List<dynamic> funcionariosFiltrados;
+    switch (_filtroAtual) {
+      case FiltroFuncionario.ativos:
+        funcionariosFiltrados = provider.funcionariosAtivos;
+        break;
+      case FiltroFuncionario.inativos:
+        funcionariosFiltrados = provider.funcionariosInativos;
+        break;
+      case FiltroFuncionario.todos:
+        funcionariosFiltrados = provider.funcionarios;
+        break;
+    }
 
     return AppLayout(
       titulo: 'Funcionários',
@@ -27,7 +51,7 @@ class FuncionariosPage extends StatelessWidget {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Funcionários (${provider.funcionarios.length})',
+                      'Funcionários (${funcionariosFiltrados.length})',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -53,31 +77,80 @@ class FuncionariosPage extends StatelessWidget {
               ),
             ),
 
-            const Divider(height: 30),
+            const Divider(height: 20),
+
+            // 🔥 FILTRO DE STATUS
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Row(
+                children: [
+                  const Text(
+                    'Filtrar:',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SegmentedButton<FiltroFuncionario>(
+                      segments: const [
+                        ButtonSegment(
+                          value: FiltroFuncionario.ativos,
+                          label: Text('Ativos'),
+                          icon: Icon(Icons.check_circle, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: FiltroFuncionario.inativos,
+                          label: Text('Inativos'),
+                          icon: Icon(Icons.block, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: FiltroFuncionario.todos,
+                          label: Text('Todos'),
+                          icon: Icon(Icons.people, size: 16),
+                        ),
+                      ],
+                      selected: {_filtroAtual},
+                      onSelectionChanged: (Set<FiltroFuncionario> selection) {
+                        setState(() {
+                          _filtroAtual = selection.first;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const Divider(height: 10),
 
             Expanded(
-              child: provider.funcionarios.isEmpty
-                  ? const Center(
+              child: funcionariosFiltrados.isEmpty
+                  ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.people_outline,
+                            _filtroAtual == FiltroFuncionario.inativos
+                                ? Icons.block
+                                : Icons.people_outline,
                             size: 80,
                             color: Colors.grey,
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           Text(
-                            'Nenhum funcionário cadastrado.',
-                            style: TextStyle(
+                            _filtroAtual == FiltroFuncionario.inativos
+                                ? 'Nenhum funcionário inativo.'
+                                : 'Nenhum funcionário cadastrado.',
+                            style: const TextStyle(
                               fontSize: 18,
                               color: Colors.grey,
                             ),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
-                            'Clique em "Novo" para começar',
-                            style: TextStyle(
+                            _filtroAtual == FiltroFuncionario.inativos
+                                ? 'Funcionários desativados aparecem aqui.'
+                                : 'Clique em "Novo" para começar',
+                            style: const TextStyle(
                               color: Colors.grey,
                             ),
                           ),
@@ -85,12 +158,11 @@ class FuncionariosPage extends StatelessWidget {
                       ),
                     )
                   : ListView.builder(
-                      itemCount: provider.funcionarios.length,
+                      itemCount: funcionariosFiltrados.length,
                       itemBuilder: (context, index) {
-                        final f = provider.funcionarios[index];
+                        final f = funcionariosFiltrados[index];
                         return InkWell(
                           onTap: () {
-                            // Navegar para detalhes
                             context.push(
                               '/funcionario-detalhes/${f.id}',
                             );
@@ -108,12 +180,18 @@ class FuncionariosPage extends StatelessWidget {
   }
 
   Widget _buildFuncionarioCard(dynamic funcionario) {
+    final isAtivo = funcionario.ativo;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 4,
+      elevation: isAtivo ? 4 : 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        side: isAtivo 
+            ? BorderSide.none 
+            : BorderSide(color: Colors.grey.shade300, width: 1),
       ),
+      color: isAtivo ? Colors.white : Colors.grey.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -121,13 +199,19 @@ class FuncionariosPage extends StatelessWidget {
             // Avatar
             CircleAvatar(
               radius: 30,
-              backgroundColor: Colors.blue.shade100,
+              backgroundColor: isAtivo 
+                  ? Colors.blue.shade100 
+                  : Colors.grey.shade300,
               child: Text(
-                funcionario.nome.isNotEmpty ? funcionario.nome[0].toUpperCase() : '?',
+                funcionario.nome.isNotEmpty 
+                    ? funcionario.nome[0].toUpperCase() 
+                    : '?',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade800,
+                  color: isAtivo 
+                      ? Colors.blue.shade800 
+                      : Colors.grey.shade600,
                 ),
               ),
             ),
@@ -141,9 +225,10 @@ class FuncionariosPage extends StatelessWidget {
                 children: [
                   Text(
                     funcionario.nome,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: isAtivo ? Colors.black : Colors.grey.shade600,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -154,13 +239,17 @@ class FuncionariosPage extends StatelessWidget {
                       Icon(
                         Icons.work_outline,
                         size: 16,
-                        color: Colors.grey.shade600,
+                        color: isAtivo 
+                            ? Colors.grey.shade600 
+                            : Colors.grey.shade400,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         funcionario.cargo,
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          color: isAtivo 
+                              ? Colors.grey.shade700 
+                              : Colors.grey.shade500,
                           fontSize: 14,
                         ),
                       ),
@@ -172,13 +261,17 @@ class FuncionariosPage extends StatelessWidget {
                       Icon(
                         Icons.email_outlined,
                         size: 14,
-                        color: Colors.grey.shade500,
+                        color: isAtivo 
+                            ? Colors.grey.shade500 
+                            : Colors.grey.shade400,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         funcionario.email,
                         style: TextStyle(
-                          color: Colors.grey.shade500,
+                          color: isAtivo 
+                              ? Colors.grey.shade500 
+                              : Colors.grey.shade400,
                           fontSize: 12,
                         ),
                         maxLines: 1,
@@ -202,12 +295,12 @@ class FuncionariosPage extends StatelessWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: funcionario.ativo 
+                    color: isAtivo 
                         ? Colors.green.shade50 
                         : Colors.red.shade50,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: funcionario.ativo 
+                      color: isAtivo 
                           ? Colors.green.shade200 
                           : Colors.red.shade200,
                       width: 1,
@@ -221,18 +314,18 @@ class FuncionariosPage extends StatelessWidget {
                         height: 8,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: funcionario.ativo 
+                          color: isAtivo 
                               ? Colors.green 
                               : Colors.red,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        funcionario.ativo ? 'Ativo' : 'Inativo',
+                        isAtivo ? 'Ativo' : 'Inativo',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: funcionario.ativo 
+                          color: isAtivo 
                               ? Colors.green.shade700 
                               : Colors.red.shade700,
                         ),
@@ -243,7 +336,9 @@ class FuncionariosPage extends StatelessWidget {
                 const SizedBox(height: 8),
                 Icon(
                   Icons.chevron_right,
-                  color: Colors.grey.shade400,
+                  color: isAtivo 
+                      ? Colors.grey.shade400 
+                      : Colors.grey.shade300,
                 ),
               ],
             ),

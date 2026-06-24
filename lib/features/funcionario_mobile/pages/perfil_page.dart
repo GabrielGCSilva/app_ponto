@@ -68,7 +68,6 @@ class _PerfilPageState extends State<PerfilPage> {
               ),
             ),
             const Divider(height: 40),
-            const SizedBox(height: 20),
 
             // Opções
             _buildOption(
@@ -76,7 +75,7 @@ class _PerfilPageState extends State<PerfilPage> {
               title: 'Meu Histórico',
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Histórico em breve')),
+                  const SnackBar(content: Text('📋 Histórico em breve')),
                 );
               },
             ),
@@ -85,7 +84,16 @@ class _PerfilPageState extends State<PerfilPage> {
               title: 'Notificações',
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Notificações em breve')),
+                  const SnackBar(content: Text('🔔 Notificações em breve')),
+                );
+              },
+            ),
+            _buildOption(
+              icon: Icons.help_outline,
+              title: 'Ajuda',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('📖 Ajuda em breve')),
                 );
               },
             ),

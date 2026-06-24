@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'firebase_options.dart'; // 🔥 ADICIONAR
+import 'firebase_options.dart';
 import 'routes/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/notification_service.dart';
@@ -15,15 +15,12 @@ import 'features/ponto/providers/alerta_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🔥 Inicializar Firebase com as opções corretas
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform, // 🔥 USAR AS OPÇÕES
+    options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 🔥 Solicitar permissão para notificações
   await FirebaseMessaging.instance.requestPermission();
 
-  // 🔥 Inicializar Notificações
   await NotificationService().init();
 
   runApp(

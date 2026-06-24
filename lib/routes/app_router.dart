@@ -8,6 +8,7 @@ import '../features/funcionario/pages/funcionarios_page.dart';
 import '../features/funcionario/pages/cadastrar_funcionario_page.dart';
 import '../features/funcionario/pages/funcionario_detalhes_page.dart';
 import '../features/funcionario_mobile/pages/home_page.dart';
+import '../features/funcionario_mobile/pages/registro_ponto_mobile_page.dart'; // 🔥 NOVO
 
 final appRouter = GoRouter(
   initialLocation: '/login',
@@ -22,6 +23,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/home',
       builder: (context, state) => const HomePage(),
+    ),
+    GoRoute(
+      path: '/registro-ponto-mobile',
+      builder: (context, state) => const RegistroPontoMobilePage(),
     ),
 
     // 🔥 ADMIN - DASHBOARD

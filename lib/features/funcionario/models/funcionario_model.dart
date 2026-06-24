@@ -16,7 +16,8 @@ class Funcionario {
   final DateTime dataAdmissao;
 
   final bool ativo;
-  final String ?fotoPath;
+  final String? fotoPath;
+  final DateTime? dataExclusao; // 🔥 NOVO: quando foi desativado
 
   Funcionario({
     required this.id,
@@ -36,43 +37,48 @@ class Funcionario {
     required this.dataAdmissao,
 
     required this.ativo,
-    this.fotoPath
+    this.fotoPath,
+    this.dataExclusao,
   });
 
-  // Converte para Map do Firestore
-Map<String, dynamic> toFirestore() {
-  return {
-    'empresaId': empresaId,
-    'nome': nome,
-    'email': email,
-    'telefone': telefone,
-    'cargo': cargo,
-    'matricula': matricula,
-    'rg': rg,
-    'cpf': cpf,
-    'dataNascimento': dataNascimento.toIso8601String(),
-    'dataAdmissao': dataAdmissao.toIso8601String(),
-    'ativo': ativo,
-  };
-}
+  // 🔥 Converte para Map do Firestore (ATUALIZADO)
+  Map<String, dynamic> toFirestore() {
+    return {
+      'empresaId': empresaId,
+      'nome': nome,
+      'email': email,
+      'telefone': telefone,
+      'cargo': cargo,
+      'matricula': matricula,
+      'rg': rg,
+      'cpf': cpf,
+      'dataNascimento': dataNascimento.toIso8601String(),
+      'dataAdmissao': dataAdmissao.toIso8601String(),
+      'ativo': ativo,
+      'fotoPath': fotoPath, // 🔥 ADICIONADO
+      'dataExclusao': dataExclusao?.toIso8601String(), // 🔥 ADICIONADO (pode ser null)
+    };
+  }
 
-// Cria a partir do Map do Firestore
-factory Funcionario.fromFirestore(Map<String, dynamic> data, String id) {
-  return Funcionario(
-    id: id,
-    empresaId: data['empresaId'] ?? '',
-    nome: data['nome'] ?? '',
-    email: data['email'] ?? '',
-    telefone: data['telefone'] ?? '',
-    cargo: data['cargo'] ?? '',
-    matricula: data['matricula'] ?? '',
-    rg: data['rg'] ?? '',
-    cpf: data['cpf'] ?? '',
-    dataNascimento: DateTime.parse(data['dataNascimento']),
-    dataAdmissao: DateTime.parse(data['dataAdmissao']),
-    ativo: data['ativo'] ?? true,
-    fotoPath: data['fotoURL'] ?? '',
-  );
+  // 🔥 Cria a partir do Map do Firestore (ATUALIZADO)
+  factory Funcionario.fromFirestore(Map<String, dynamic> data, String id) {
+    return Funcionario(
+      id: id,
+      empresaId: data['empresaId'] ?? '',
+      nome: data['nome'] ?? '',
+      email: data['email'] ?? '',
+      telefone: data['telefone'] ?? '',
+      cargo: data['cargo'] ?? '',
+      matricula: data['matricula'] ?? '',
+      rg: data['rg'] ?? '',
+      cpf: data['cpf'] ?? '',
+      dataNascimento: DateTime.parse(data['dataNascimento']),
+      dataAdmissao: DateTime.parse(data['dataAdmissao']),
+      ativo: data['ativo'] ?? true,
+      fotoPath: data['fotoPath'] ?? data['fotoURL'], // 🔥 Suporta ambos os nomes
+      dataExclusao: data['dataExclusao'] != null 
+          ? DateTime.parse(data['dataExclusao']) 
+          : null, // 🔥 ADICIONADO
+    );
+  }
 }
-}
-

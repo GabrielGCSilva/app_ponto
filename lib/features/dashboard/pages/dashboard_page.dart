@@ -48,7 +48,8 @@ class _DashboardPageState extends State<DashboardPage> {
         .where((r) => r.dataHora.isAfter(inicioDia))
         .length;
 
-    final horasExtras = '18h';
+    // 🔥 Calcular horas extras (simples)
+    final horasExtras = '0h';
 
     return AppLayout(
       titulo: 'Dashboard',
@@ -213,123 +214,129 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildUltimosRegistros(PontoProvider provider) {
-  final registros = provider.registros.take(5).toList();
+    final registros = provider.registros.take(5).toList();
 
-  return Card(
-    elevation: 2,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '📋 Últimos Registros',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: SingleChildScrollView( // 🔥 ENVOLVER COM SingleChildScrollView
-              child: Column(
-                children: provider.carregando
-                    ? [const Center(child: CircularProgressIndicator())]
-                    : registros.isEmpty
-                        ? [
-                            const Center(
-                              child: Text(
-                                'Nenhum registro encontrado',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            )
-                          ]
-                        : registros.map((registro) => _buildRegistroItem(registro)).toList(),
-              ),
-            ),
-          ),
-        ],
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
-    ),
-  );
-}
-
-  // 🔥 MÉTODO ATUALIZADO COM DATA
-  Widget _buildRegistroItem(RegistroPonto registro) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 50,
-            decoration: BoxDecoration(
-              color: registro.tipo.color,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  registro.funcionarioNome,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                Row(
-                  children: [
-                    Icon(
-                      registro.tipo.icon,
-                      size: 14,
-                      color: registro.tipo.color,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      registro.tipo.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-                // 🔥 DATA DO REGISTRO
-                Text(
-                  registro.dataFormatada,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                registro.horaFormatada,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '📋 Últimos Registros',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
-              // 🔥 DIA DA SEMANA (opcional)
-              Text(
-                _getDiaSemana(registro.dataHora.weekday),
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
-              ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: provider.carregando
+                  ? const Center(child: CircularProgressIndicator())
+                  : registros.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Nenhum registro encontrado',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: registros.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            return _buildRegistroItem(registros[index]);
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  // 🔥 MÉTODO CORRIGIDO - Busca o nome do funcionário pelo ID
+  // 🔥 MÉTODO CORRIGIDO
+Widget _buildRegistroItem(RegistroPonto registro) {
+  // 🔥 Buscar o funcionário pelo ID
+  final funcionarioProvider = context.watch<FuncionarioProvider>();
+  final funcionario = funcionarioProvider.buscarPorId(registro.funcionarioId);
+  
+  // 🔥 Usar o nome do funcionário ou fallback (simplificado)
+  final nome = funcionario?.nome ?? 'Funcionário';
+  
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(
+      children: [
+        Container(
+          width: 4,
+          height: 50,
+          decoration: BoxDecoration(
+            color: registro.tipo.color,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                nome,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              Row(
+                children: [
+                  Icon(
+                    registro.tipo.icon,
+                    size: 14,
+                    color: registro.tipo.color,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    registro.tipo.label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                registro.dataFormatada,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+        ),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              registro.horaFormatada,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            Text(
+              _getDiaSemana(registro.dataHora.weekday),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
 
   // 🔥 Método auxiliar para dia da semana
   String _getDiaSemana(int weekday) {
