@@ -1,0 +1,31 @@
+name: Verificar Alertas de Ponto
+
+on:
+  schedule:
+    # 🔥 Executa a cada 5 minutos
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Permite executar manualmente
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+      
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Instalar dependências
+        run: npm install
+        working-directory: ./functions
+      
+      - name: Verificar alertas
+        run: node functions/verificar_alertas.js
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
