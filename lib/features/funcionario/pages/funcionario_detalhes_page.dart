@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/funcionario_model.dart';
 import '../providers/funcionario_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FuncionarioDetalhesPage extends StatefulWidget {
   final String funcionarioId;
@@ -22,6 +23,7 @@ class FuncionarioDetalhesPage extends StatefulWidget {
 class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
   late Funcionario _funcionario;
   bool _isEditing = false;
+  late bool _isCurrentUser;
 
   // Controllers para todos os campos
   final _formKey = GlobalKey<FormState>();
@@ -42,11 +44,20 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
   String? _fotoPath;
   final ImagePicker _imagePicker = ImagePicker();
 
-  @override
+    @override
   void initState() {
     super.initState();
     _carregarFuncionario();
-  }
+    
+    // 🔥 VERIFICAR SE É O PRÓPRIO USUÁRIO
+    final currentUser = FirebaseAuth.instance.currentUser;
+    _isCurrentUser = currentUser?.uid == widget.funcionarioId;
+
+    // 🔥 DEBUG: Verificar no console
+  debugPrint('🔍 Current User: ${currentUser?.uid}');
+  debugPrint('🔍 Funcionario ID: ${widget.funcionarioId}');
+  debugPrint('🔍 É o próprio usuário? $_isCurrentUser');
+}
 
   void _carregarFuncionario() {
     final provider = context.read<FuncionarioProvider>();
@@ -454,6 +465,7 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
             try {
               if (isAtivo) {
                 await provider.desativar(funcionarioId);
+                await provider.carregarFuncionarios();
                 if (mounted) {
                   messenger.showSnackBar(
                     SnackBar(
@@ -773,26 +785,24 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
 
         const SizedBox(height: 16),
 
-        // 🔥 BOTÃO DE DESATIVAR/REATIVAR
-        if (!_isEditing)
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _confirmarAlteracaoStatus(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _funcionario.ativo ? Colors.orange : Colors.green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              icon: Icon(_funcionario.ativo ? Icons.block : Icons.check_circle),
-              label: Text(
-                _funcionario.ativo 
-                    ? 'DESATIVAR FUNCIONÁRIO' 
-                    : 'REATIVAR FUNCIONÁRIO',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+              // 🔥 SÓ MOSTRA SE NÃO FOR O PRÓPRIO ADMIN
+      if (!_isEditing && !_isCurrentUser && _funcionario.ativo)
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => _confirmarAlteracaoStatus(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            icon: const Icon(Icons.block),
+            label: const Text(
+              'DESATIVAR FUNCIONÁRIO',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
+        ),
 
         const SizedBox(height: 12),
 

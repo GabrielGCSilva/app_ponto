@@ -19,7 +19,9 @@ class CadastrarFuncionarioPage extends StatefulWidget {
 class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers
+  // ============================================================
+  // 1️⃣ CONTROLLERS
+  // ============================================================
   final nomeController = TextEditingController();
   final emailController = TextEditingController();
   final telefoneController = TextEditingController();
@@ -28,34 +30,35 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
   final cpfController = TextEditingController();
   final matriculaController = TextEditingController();
   final empresaIdController = TextEditingController();
-
-  // 🔥 CONTROLLER DA SENHA
   final senhaController = TextEditingController();
+  final confirmarSenhaController = TextEditingController(); // 🔥 NOVO
 
-  // Datas
+  // ============================================================
+  // 2️⃣ VARIÁVEIS DE ESTADO
+  // ============================================================
   DateTime? dataNascimento;
   DateTime? dataAdmissao;
-
-  // Status
   bool ativo = true;
-  
-  // 🔥 Estado de carregamento
+  bool _isAdmin = false;
   bool _carregando = false;
 
-  // 🔥 GERAR SENHA PADRÃO
+  // ============================================================
+  // 3️⃣ GETTERS
+  // ============================================================
   String get _senhaPadrao {
-    // Pega as iniciais do nome + ano atual
     final iniciais = nomeController.text.isNotEmpty
         ? nomeController.text
             .split(' ')
             .map((e) => e.isNotEmpty ? e[0].toLowerCase() : '')
             .join('')
         : 'func';
-    
     final ano = DateTime.now().year;
-    return '$iniciais@$ano'; // Ex: joaos@2026
+    return '$iniciais@$ano';
   }
 
+  // ============================================================
+  // 4️⃣ VALIDADORES
+  // ============================================================
   String? campoObrigatorio(String? valor, String campo) {
     if (valor == null || valor.trim().isEmpty) {
       return 'Informe $campo';
@@ -63,6 +66,41 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
     return null;
   }
 
+  // 🔥 NOVO: Validador de matrícula (não pode repetir)
+  String? _validarMatricula(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Informe a matrícula';
+    }
+    final provider = context.read<FuncionarioProvider>();
+    if (provider.matriculaExiste(value.trim())) {
+      return '❌ Matrícula já cadastrada';
+    }
+    return null;
+  }
+
+  // 🔥 NOVO: Validador de confirmação de senha
+  String? _validarConfirmarSenha(String? value) {
+    final senha = senhaController.text.trim();
+    
+    // Se a senha está vazia, confirmar senha é opcional
+    if (senha.isEmpty) {
+      return null;
+    }
+    
+    // Se a senha foi preenchida, a confirmação é obrigatória
+    if (value == null || value.trim().isEmpty) {
+      return 'Confirme a senha';
+    }
+    if (value.trim() != senha) {
+      return 'As senhas não coincidem';
+    }
+    return null;
+  }
+
+
+  // ============================================================
+  // 5️⃣ MÉTODOS DE DATA
+  // ============================================================
   Future selecionarDataNascimento() async {
     final data = await showDatePicker(
       context: context,
@@ -70,11 +108,8 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
       firstDate: DateTime(1950),
       lastDate: DateTime.now(),
     );
-
     if (data != null) {
-      setState(() {
-        dataNascimento = data;
-      });
+      setState(() => dataNascimento = data);
     }
   }
 
@@ -85,48 +120,41 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
       firstDate: DateTime(1980),
       lastDate: DateTime(2100),
     );
-
     if (data != null) {
-      setState(() {
-        dataAdmissao = data;
-      });
+      setState(() => dataAdmissao = data);
     }
   }
 
   String formatarData(DateTime? data) {
-    if (data == null) {
-      return 'Selecionar';
-    }
+    if (data == null) return 'Selecionar';
     return '${data.day.toString().padLeft(2, '0')}/'
         '${data.month.toString().padLeft(2, '0')}/'
         '${data.year}';
   }
 
-  // 🔥 MÉTODO DE SALVAR COM SENHA PADRÃO
+  // ============================================================
+  // 6️⃣ MÉTODO SALVAR
+  // ============================================================
   Future<void> _salvarFuncionario() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (dataNascimento == null || dataAdmissao == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Preencha a data de nascimento e a data de admissão.',
-          ),
+          content: Text('Preencha a data de nascimento e a data de admissão.'),
         ),
       );
       return;
     }
 
-    // 🔥 Guardar referências ANTES do async
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
     final provider = context.read<FuncionarioProvider>();
     final email = emailController.text.trim();
-    
-    // 🔥 USAR SENHA PADRÃO SE NÃO FOI PREENCHIDA
+
     String senha = senhaController.text.trim();
     bool senhaGerada = false;
-    
+
     if (senha.isEmpty) {
       senha = _senhaPadrao;
       senhaGerada = true;
@@ -135,7 +163,6 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
     setState(() => _carregando = true);
 
     try {
-      // 🔥 1. CRIAR USUÁRIO NO FIREBASE AUTH
       final auth = FirebaseAuth.instance;
       final userCredential = await auth.createUserWithEmailAndPassword(
         email: email,
@@ -145,7 +172,6 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
       final userId = userCredential.user?.uid ??
           DateTime.now().millisecondsSinceEpoch.toString();
 
-      // 🔥 2. CRIAR FUNCIONÁRIO
       final funcionario = Funcionario(
         id: userId,
         empresaId: empresaIdController.text,
@@ -161,19 +187,17 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
         ativo: ativo,
         fotoPath: null,
         dataExclusao: null,
+        isAdmin: _isAdmin,
       );
 
-      // 🔥 3. SALVAR NO FIRESTORE
       await FirebaseFirestore.instance
           .collection('funcionarios')
           .doc(userId)
           .set(funcionario.toFirestore());
 
-      // 🔥 4. ADICIONAR AO PROVIDER LOCAL
       provider.adicionar(funcionario);
 
       if (mounted) {
-        // 🔥 MOSTRAR SENHA GERADA
         if (senhaGerada) {
           messenger.showSnackBar(
             SnackBar(
@@ -186,12 +210,10 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
+                  Text('📧 Email: $email', style: const TextStyle(fontSize: 13)),
+                  Text('🔑 Senha: $senha', style: const TextStyle(fontSize: 13)),
                   Text(
-                    '📧 Email: $email',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  Text(
-                    '🔑 Senha: $senha',
+                    '👤 Perfil: ${_isAdmin ? "ADMIN" : "Funcionário"}',
                     style: const TextStyle(fontSize: 13),
                   ),
                 ],
@@ -260,13 +282,18 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
     matriculaController.clear();
     empresaIdController.clear();
     senhaController.clear();
+    confirmarSenhaController.clear(); // 🔥 NOVO
     setState(() {
       dataNascimento = null;
       dataAdmissao = null;
       ativo = true;
+      _isAdmin = false;
     });
   }
 
+  // ============================================================
+  // 7️⃣ BUILD
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     return AppLayout(
@@ -367,7 +394,7 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
 
                     const SizedBox(height: 16),
 
-                    // LINHA 2: Senha (opcional) + Telefone
+                    // LINHA 2: Senha + Confirmar Senha
                     Row(
                       children: [
                         Expanded(
@@ -382,7 +409,9 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
                             ),
                             obscureText: true,
                             validator: (value) {
-                              if (value != null && value.trim().isNotEmpty && value.length < 6) {
+                              if (value != null &&
+                                  value.trim().isNotEmpty &&
+                                  value.length < 6) {
                                 return 'Mínimo 6 caracteres';
                               }
                               return null;
@@ -390,6 +419,25 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
                           ),
                         ),
                         const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: confirmarSenhaController, // 🔥 NOVO
+                            decoration: const InputDecoration(
+                              labelText: 'Confirmar Senha',
+                              border: OutlineInputBorder(),
+                            ),
+                            obscureText: true,
+                            validator: _validarConfirmarSenha, // 🔥 NOVO
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // LINHA 3: Telefone + Cargo
+                    Row(
+                      children: [
                         Expanded(
                           child: TextFormField(
                             controller: telefoneController,
@@ -402,14 +450,7 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
                                 campoObrigatorio(value, 'o telefone'),
                           ),
                         ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // LINHA 3: Cargo + Matrícula
-                    Row(
-                      children: [
+                        const SizedBox(width: 16),
                         Expanded(
                           child: TextFormField(
                             controller: cargoController,
@@ -421,7 +462,14 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
                                 campoObrigatorio(value, 'o cargo'),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // LINHA 4: Matrícula + RG
+                    Row(
+                      children: [
                         Expanded(
                           child: TextFormField(
                             controller: matriculaController,
@@ -429,18 +477,10 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
                               labelText: 'Matrícula',
                               border: OutlineInputBorder(),
                             ),
-                            validator: (value) =>
-                                campoObrigatorio(value, 'a matrícula'),
+                            validator: _validarMatricula, // 🔥 NOVO
                           ),
                         ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // LINHA 4: RG + CPF
-                    Row(
-                      children: [
+                        const SizedBox(width: 16),
                         Expanded(
                           child: TextFormField(
                             controller: rgController,
@@ -452,7 +492,14 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
                                 campoObrigatorio(value, 'o RG'),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // LINHA 5: CPF + Empresa ID
+                    Row(
+                      children: [
                         Expanded(
                           child: TextFormField(
                             controller: cpfController,
@@ -464,14 +511,7 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
                                 campoObrigatorio(value, 'o CPF'),
                           ),
                         ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // LINHA 5: Empresa ID
-                    Row(
-                      children: [
+                        const SizedBox(width: 16),
                         Expanded(
                           child: TextFormField(
                             controller: empresaIdController,
@@ -482,10 +522,6 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
                             validator: (value) =>
                                 campoObrigatorio(value, 'o ID da empresa'),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Container(),
                         ),
                       ],
                     ),
@@ -525,8 +561,47 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
 
                     const SizedBox(height: 24),
 
+                    // SWITCH PARA ADMIN
                     SwitchListTile(
-                      title: const Text('Funcionário Ativo'),
+                      title: const Text(
+                        'Usuário Admin',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      subtitle: Text(
+                        _isAdmin
+                            ? 'Acesso total ao sistema (Dashboard)'
+                            : 'Acesso de funcionário (App mobile)',
+                        style: TextStyle(
+                          color: _isAdmin
+                              ? Colors.blue.shade700
+                              : Colors.grey.shade600,
+                        ),
+                      ),
+                      value: _isAdmin,
+                      onChanged: (value) {
+                        setState(() {
+                          _isAdmin = value;
+                        });
+                      },
+                      secondary: Icon(
+                        _isAdmin ? Icons.admin_panel_settings : Icons.person,
+                        color: _isAdmin ? Colors.blue : Colors.grey,
+                      ),
+                      tileColor: _isAdmin
+                          ? Colors.blue.shade50
+                          : Colors.grey.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    SwitchListTile(
+                      title: const Text(
+                        'Funcionário Ativo',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       subtitle: Text(ativo ? 'Ativo' : 'Inativo'),
                       value: ativo,
                       onChanged: (value) {
@@ -538,13 +613,11 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
 
                     const SizedBox(height: 24),
 
-                    // 🔥 BOTÃO SALVAR COM LOADING
+                    // BOTÃO SALVAR
                     SizedBox(
                       height: 50,
                       child: _carregando
-                          ? const Center(
-                              child: CircularProgressIndicator(),
-                            )
+                          ? const Center(child: CircularProgressIndicator())
                           : ElevatedButton.icon(
                               onPressed: _salvarFuncionario,
                               icon: const Icon(Icons.save),
@@ -561,11 +634,15 @@ class _CadastrarFuncionarioPageState extends State<CadastrarFuncionarioPage> {
     );
   }
 
+  // ============================================================
+  // 8️⃣ DISPOSE
+  // ============================================================
   @override
   void dispose() {
     nomeController.dispose();
     emailController.dispose();
     senhaController.dispose();
+    confirmarSenhaController.dispose(); // 🔥 NOVO
     telefoneController.dispose();
     cargoController.dispose();
     rgController.dispose();

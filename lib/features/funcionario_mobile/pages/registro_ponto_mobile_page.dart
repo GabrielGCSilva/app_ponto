@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/auth_service.dart';
 import '../../ponto/providers/ponto_provider.dart';
@@ -178,11 +179,14 @@ class _RegistroPontoMobilePageState extends State<RegistroPontoMobilePage> {
     );
   }
 
-    Future<void> _registrarPonto(TipoPonto tipo) async {
+  // 🔥 MÉTODO PRINCIPAL - CORRIGIDO
+  Future<void> _registrarPonto(TipoPonto tipo) async {
+    // 🔥 Guardar referências ANTES do async
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final pontoProvider = Provider.of<PontoProvider>(context, listen: false);
-    final funcionarioProvider = Provider.of<FuncionarioProvider>(context, listen: false);
+    final funcionarioProvider =
+        Provider.of<FuncionarioProvider>(context, listen: false);
 
     setState(() {
       _tipoSelecionado = tipo;
@@ -198,38 +202,89 @@ class _RegistroPontoMobilePageState extends State<RegistroPontoMobilePage> {
 
       final funcionarioId = usuario['id'] ?? '';
 
-      // 🔥 FORÇAR RECARREGAR DO FIRESTORE PARA TER DADOS ATUALIZADOS
+      // 🔥 FORÇAR RECARREGAR DO FIRESTORE
       await funcionarioProvider.carregarFuncionarios();
 
       // 🔥 VERIFICAR SE O FUNCIONÁRIO ESTÁ ATIVO
+      final funcionario = funcionarioProvider.buscarPorId(funcionarioId);
       final podeBater = funcionarioProvider.podeBaterPonto(funcionarioId);
+      final isAdmin = funcionario?.isAdmin ?? false;
 
-      if (!podeBater) {
-        final funcionario = funcionarioProvider.buscarPorId(funcionarioId);
-        final nome = funcionario?.nome ?? 'Funcionário';
-
-        throw Exception(
-          '❌ $nome está INATIVO no sistema.\n'
-          'Entre em contato com o administrador para reativar seu acesso.\n'
-          'Histórico de pontos mantido.',
-        );
-      }
-
-      await pontoProvider.registrarPonto(
-        funcionarioId: funcionarioId,
-        funcionarioNome: usuario['nome'] ?? 'Funcionário',
-        tipo: tipo,
-        metodoAutenticacao: 'Senha',
+      // 🔥 SE FOR ADMIN DESATIVADO, FORÇAR LOGOUT
+if (!podeBater) {
+  if (isAdmin) {
+    // 🔥 Forçar logout do Admin desativado
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('❌ Admin foi desativado. Fazendo logout...'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
       );
-
+      await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('✅ ${tipo.label} registrada com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
+        navigator.pushReplacementNamed('/login');
+      }
+    }
+    return;
+  } else {
+    // ❌ Funcionário normal bloqueado
+    final nome = funcionario?.nome ?? 'Funcionário';
+    throw Exception(
+      '❌ $nome está INATIVO no sistema.\n'
+      'Entre em contato com o administrador.',
+    );
+  }
+}
+
+      // 🔥 TENTAR REGISTRAR PONTO (pode lançar erro de duplicado)
+      try {
+        await pontoProvider.registrarPonto(
+          funcionarioId: funcionarioId,
+          funcionarioNome: usuario['nome'] ?? 'Funcionário',
+          tipo: tipo,
+          metodoAutenticacao: 'Senha',
+          sobrescrever: false, // Tentativa normal
         );
-        navigator.pop();
+
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('✅ ${tipo.label} registrada com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          navigator.pop();
+        }
+      } catch (e) {
+        final mensagem = e.toString();
+
+        // 🔥 VERIFICAR SE É ERRO DE PONTO DUPLICADO
+        if (mensagem.contains('já registrado hoje') && mounted) {
+          // 🔥 PERGUNTAR SE QUER SOBRESCREVER (SÓ ADMIN)
+          if (isAdmin) {
+            _mostrarDialogSobrescrever(
+              context,
+              tipo,
+              funcionarioId,
+              usuario['nome'] ?? 'Funcionário',
+            );
+          } else {
+            // ❌ FUNCIONÁRIO NORMAL NÃO PODE SOBRESCREVER
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text('❌ ${tipo.label} já registrado hoje!'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        } else {
+          // ❌ OUTRO ERRO
+          rethrow;
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -247,5 +302,103 @@ class _RegistroPontoMobilePageState extends State<RegistroPontoMobilePage> {
         setState(() => _registrando = false);
       }
     }
+  }
+
+  // 🔥 DIALOG PARA SOBRESCREVER PONTO (APENAS ADMIN)
+  void _mostrarDialogSobrescrever(
+    BuildContext context,
+    TipoPonto tipo,
+    String funcionarioId,
+    String funcionarioNome,
+  ) {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final pontoProvider = Provider.of<PontoProvider>(context, listen: false);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('⚠️ Ponto já registrado'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${tipo.label} já foi registrado hoje para $funcionarioNome.',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Sobrescrever irá DELETAR o registro anterior.',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+
+              try {
+                // 🔥 SOBRESCREVER O PONTO
+                await pontoProvider.registrarPonto(
+                  funcionarioId: funcionarioId,
+                  funcionarioNome: funcionarioNome,
+                  tipo: tipo,
+                  metodoAutenticacao: 'Senha (Admin)',
+                  sobrescrever: true, // 🔥 SOBRESCREVER!
+                );
+
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('✅ ${tipo.label} sobrescrita com sucesso!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  navigator.pop();
+                }
+              } catch (e) {
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('❌ Erro: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Sobrescrever'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

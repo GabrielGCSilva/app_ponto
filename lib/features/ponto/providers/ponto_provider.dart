@@ -47,11 +47,13 @@ class PontoProvider extends ChangeNotifier {
     }
   }
 
+  // 🔥 MÉTODO REGISTRAR PONTO COM SOBRESCREVER
   Future<void> registrarPonto({
     required String funcionarioId,
     required String funcionarioNome,
     required TipoPonto tipo,
     required String metodoAutenticacao,
+    bool sobrescrever = false, // 🔥 NOVO PARÂMETRO
     String? fotoURL,
   }) async {
     try {
@@ -59,6 +61,7 @@ class PontoProvider extends ChangeNotifier {
       debugPrint('📝 [PONTO] Funcionário: $funcionarioNome');
       debugPrint('📝 [PONTO] Tipo: ${tipo.label}');
       debugPrint('📝 [PONTO] Método: $metodoAutenticacao');
+      debugPrint('📝 [PONTO] Sobrescrever: $sobrescrever');
 
       // 🔥 TENTAR OBTER LOCALIZAÇÃO COM FALLBACK
       double latitude;
@@ -76,14 +79,13 @@ class PontoProvider extends ChangeNotifier {
           throw Exception('Localização nula');
         }
       } catch (e) {
-        // 🔥 FALLBACK PARA DESKTOP
         debugPrint('⚠️ [PONTO] Localização indisponível, usando fallback (Desktop)');
-        latitude = -23.5505; // São Paulo
-        longitude = -46.6333; // São Paulo
+        latitude = -23.5505;
+        longitude = -46.6333;
         endereco = 'Desktop - Localização simulada';
       }
 
-      // 🔥 Verificar se já existe registro do mesmo tipo hoje
+      // 🔥 VERIFICAR SE JÁ EXISTE REGISTRO DO MESMO TIPO HOJE
       final hoje = DateTime.now();
       final inicioDia = DateTime(hoje.year, hoje.month, hoje.day);
       final fimDia = inicioDia.add(const Duration(days: 1));
@@ -96,11 +98,22 @@ class PontoProvider extends ChangeNotifier {
           .where('tipo', isEqualTo: tipo.name)
           .get();
 
+      // 🔥 SE JÁ EXISTIR REGISTRO
       if (registrosHoje.docs.isNotEmpty) {
-        throw Exception('${tipo.label} já registrado hoje!');
+        if (sobrescrever) {
+          // ✅ SOBRESCREVER: DELETAR REGISTRO ANTIGO
+          debugPrint('📝 [PONTO] Registro antigo encontrado, deletando para sobrescrever...');
+          for (var doc in registrosHoje.docs) {
+            await doc.reference.delete();
+          }
+          debugPrint('✅ [PONTO] Registro antigo deletado com sucesso!');
+        } else {
+          // ❌ NÃO SOBRESCREVER: LANÇAR ERRO
+          throw Exception('${tipo.label} já registrado hoje!');
+        }
       }
 
-      // 🔥 Criar registro
+      // 🔥 CRIAR REGISTRO
       final registro = RegistroPonto(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         funcionarioId: funcionarioId,
@@ -114,13 +127,13 @@ class PontoProvider extends ChangeNotifier {
         fotoURL: fotoURL,
       );
 
-      // 🔥 Salvar no Firestore
+      // 🔥 SALVAR NO FIRESTORE
       await _firestore
           .collection('registros_ponto')
           .doc(registro.id)
           .set(registro.toFirestore());
 
-      // 🔥 Atualizar lista local
+      // 🔥 ATUALIZAR LISTA LOCAL
       _registros.insert(0, registro);
       notifyListeners();
 
