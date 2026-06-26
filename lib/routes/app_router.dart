@@ -1,53 +1,49 @@
 import 'package:go_router/go_router.dart';
 import '../features/auth/pages/login_page.dart';
 import '../features/dashboard/pages/dashboard_page.dart';
-import '../features/ponto/pages/registro_ponto_page.dart';
-import '../features/relatorios/pages/relatorios_page.dart';
-import '../features/configuracoes/pages/configuracoes_page.dart';
+import '../features/funcionario_mobile/pages/home_page.dart';
 import '../features/funcionario/pages/funcionarios_page.dart';
 import '../features/funcionario/pages/cadastrar_funcionario_page.dart';
 import '../features/funcionario/pages/funcionario_detalhes_page.dart';
-import '../features/funcionario_mobile/pages/home_page.dart';
-import '../features/funcionario_mobile/pages/registro_ponto_mobile_page.dart'; // 🔥 NOVO
+import '../features/funcionario_mobile/pages/registro_ponto_mobile_page.dart'; // ✅ CORRETO
+import '../features/relatorios/pages/relatorios_page.dart';
+import '../features/configuracoes/pages/configuracoes_page.dart';
+import '../features/perfil/pages/perfil_page.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login',
   routes: [
-    // 🔥 LOGIN
+    // LOGIN
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginPage(),
     ),
 
-    // 🔥 MOBILE - FUNCIONÁRIO
-    GoRoute(
-      path: '/home',
-      builder: (context, state) => const HomePage(),
-    ),
-    GoRoute(
-      path: '/registro-ponto-mobile',
-      builder: (context, state) => const RegistroPontoMobilePage(),
-    ),
-
-    // 🔥 ADMIN - DASHBOARD
+    // DASHBOARD
     GoRoute(
       path: '/dashboard',
       builder: (context, state) => const DashboardPage(),
     ),
 
-    // 🔥 ADMIN - FUNCIONÁRIOS
+    // HOME (Mobile)
+    GoRoute(
+      path: '/home',
+      builder: (context, state) => const HomePage(),
+    ),
+
+    // FUNCIONÁRIOS
     GoRoute(
       path: '/funcionarios',
       builder: (context, state) => const FuncionariosPage(),
     ),
 
-    // 🔥 ADMIN - CADASTRAR FUNCIONÁRIO
+    // CADASTRO DE FUNCIONARIO  
     GoRoute(
       path: '/cadastrar-funcionario',
       builder: (context, state) => const CadastrarFuncionarioPage(),
     ),
 
-    // 🔥 ADMIN - DETALHES DO FUNCIONÁRIO
+    // DETALHES DO FUNCIONÁRIO
     GoRoute(
       path: '/funcionario-detalhes/:id',
       builder: (context, state) {
@@ -56,32 +52,25 @@ final appRouter = GoRouter(
       },
     ),
 
-    // 🔥 ADMIN - REGISTRO DE PONTO
+    // PERFIL
+    GoRoute(
+      path: '/perfil',
+      builder: (context, state) => const PerfilPage(),
+    ),
+
+    // PONTO
     GoRoute(
       path: '/ponto',
-      builder: (context, state) => const RegistroPontoPage(),
+      builder: (context, state) => const RegistroPontoMobilePage(),
     ),
 
-    // 🔥 ADMIN - RELATÓRIOS
+    // RELATÓRIOS
     GoRoute(
       path: '/relatorios',
-      builder: (context, state) {
-        final funcionarioId = state.uri.queryParameters['funcionarioId'] ?? '';
-        final mes = int.tryParse(state.uri.queryParameters['mes'] ?? '') ?? DateTime.now().month;
-        final ano = int.tryParse(state.uri.queryParameters['ano'] ?? '') ?? DateTime.now().year;
-        
-        if (funcionarioId.isNotEmpty) {
-          return RelatoriosPage(
-            funcionarioId: funcionarioId,
-            mes: mes,
-            ano: ano,
-          );
-        }
-        return const RelatoriosPage();
-      },
+      builder: (context, state) => const RelatoriosPage(),
     ),
 
-    // 🔥 ADMIN - CONFIGURAÇÕES
+    // CONFIGURAÇÕES
     GoRoute(
       path: '/configuracoes',
       builder: (context, state) => const ConfiguracoesPage(),

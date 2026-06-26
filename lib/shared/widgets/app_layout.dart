@@ -6,13 +6,13 @@ import 'app_drawer.dart';
 class AppLayout extends StatelessWidget {
   final String titulo;
   final Widget body;
-  final bool mostrarMenu; // 🔥 NOVO: controla se mostra o menu
+  final bool mostrarMenu;
 
   const AppLayout({
     super.key,
     required this.titulo,
     required this.body,
-    this.mostrarMenu = true, // 🔥 PADRÃO: TRUE
+    this.mostrarMenu = true,
   });
 
   @override
@@ -24,7 +24,6 @@ class AppLayout extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // 🔥 MENU DO USUÁRIO (Meu Perfil + Sair)
           if (mostrarMenu)
             PopupMenuButton<String>(
               icon: const CircleAvatar(
@@ -34,10 +33,8 @@ class AppLayout extends StatelessWidget {
               tooltip: 'Menu do usuário',
               onSelected: (value) async {
                 if (value == 'profile') {
-                  // 🔥 Navegar para Perfil
                   context.push('/perfil');
                 } else if (value == 'logout') {
-                  // 🔥 Confirmar logout
                   _confirmarLogout(context);
                 }
               },
@@ -71,10 +68,11 @@ class AppLayout extends StatelessWidget {
     );
   }
 
-  // 🔥 MÉTODO DE CONFIRMAR LOGOUT
+  // 🔥 MÉTODO DE LOGOUT CORRIGIDO
   void _confirmarLogout(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Sair do App'),
         content: const Text('Deseja realmente sair?'),
@@ -92,8 +90,8 @@ class AppLayout extends StatelessWidget {
                 // 🔥 Fazer logout
                 await FirebaseAuth.instance.signOut();
                 if (context.mounted) {
-                  // 🔥 Navegar para login
-                  context.go('/login');
+                  // 🔥 USAR context.go('/') EM VEZ DE context.go('/login')
+                  context.go('/login'); // ← CORRIGIDO!
                 }
               } catch (e) {
                 if (context.mounted) {

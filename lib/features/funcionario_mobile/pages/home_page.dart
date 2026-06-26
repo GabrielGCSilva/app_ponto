@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:location/location.dart';
-import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/localizacao_service.dart';
-import '../../ponto/providers/ponto_provider.dart';
 import '../../ponto/models/registro_ponto_model.dart';
 import 'perfil_page.dart';
+import 'metodo_autenticacao_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,16 +24,14 @@ class _HomePageState extends State<HomePage>
   String? _enderecoAtual;
   bool _localizacaoDisponivel = false;
 
-  // 🔥 Controle do card animado
   bool _cardExpandido = false;
   late AnimationController _animationController;
-  // ❌ REMOVIDO: Animation<double> _animation;
 
   final LocalizacaoService _localizacaoService = LocalizacaoService();
   final AuthService _authService = AuthService();
 
-  // Estado para o registro de ponto
   TipoPonto? _tipoSelecionado;
+  // ⚠️ IGNORAR: _registrando NÃO pode ser final porque muda de valor
   bool _registrando = false;
 
   @override
@@ -41,13 +39,12 @@ class _HomePageState extends State<HomePage>
     super.initState();
     _mapController = MapController();
     _obterLocalizacao();
-
-    // 🔥 Configurar animação
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    // ❌ REMOVIDO: _animation = CurvedAnimation(...)
+    
+    _carregarDadosUsuario();
   }
 
   @override
@@ -91,7 +88,11 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  // 🔥 Alternar card
+  Future<void> _carregarDadosUsuario() async {
+    final usuario = await _authService.getUsuarioSalvo();
+    debugPrint('🔍 [HOME] Dados do usuário carregados: $usuario');
+  }
+
   void _toggleCard() {
     setState(() {
       _cardExpandido = !_cardExpandido;
@@ -99,60 +100,47 @@ class _HomePageState extends State<HomePage>
         _animationController.forward();
       } else {
         _animationController.reverse();
-        // Resetar seleção ao fechar
         _tipoSelecionado = null;
       }
     });
   }
 
-  // 🔥 Registrar ponto
-  Future<void> _registrarPonto(TipoPonto tipo) async {
+  // 🔥 MÉTODO CORRIGIDO - BuildContext guardado
+  Future<void> _selecionarTipoPonto(TipoPonto tipo) async {
+    // 🔥 Fechar o card
+    _toggleCard();
+    
+    // 🔥 Guardar referências ANTES do async
     final messenger = ScaffoldMessenger.of(context);
-    final provider = Provider.of<PontoProvider>(context, listen: false);
-
-    setState(() {
-      _tipoSelecionado = tipo;
-      _registrando = true;
-    });
-
-    try {
-      final usuario = await _authService.getUsuarioSalvo();
-
-      if (usuario == null) {
-        throw Exception('Usuário não encontrado. Faça login novamente.');
-      }
-
-      await provider.registrarPonto(
-        funcionarioId: usuario['id'] ?? '',
-        funcionarioNome: usuario['nome'] ?? 'Funcionário',
-        tipo: tipo,
-        metodoAutenticacao: 'Senha',
-      );
-
-      if (mounted) {
+    final currentContext = context;
+    
+    // 🔥 Buscar usuário salvo
+    final usuario = await _authService.getUsuarioSalvo();
+    
+    if (usuario == null) {
+      if (currentContext.mounted) {
         messenger.showSnackBar(
-          SnackBar(
-            content: Text('✅ ${tipo.label} registrada com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        // Fechar card após registro
-        _toggleCard();
-      }
-    } catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content:
-                Text('❌ Erro: ${e.toString().replaceFirst('Exception: ', '')}'),
+          const SnackBar(
+            content: Text('❌ Usuário não encontrado. Faça login novamente.'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _registrando = false);
-      }
+      return;
+    }
+
+    // 🔥 Navegar para tela de autenticação
+    if (currentContext.mounted) {
+      Navigator.push(
+        currentContext,
+        MaterialPageRoute(
+          builder: (context) => MetodoAutenticacaoPage(
+            tipoPonto: tipo,
+            funcionarioId: usuario['id'] ?? '',
+            funcionarioNome: usuario['nome'] ?? 'Funcionário',
+          ),
+        ),
+      );
     }
   }
 
@@ -182,7 +170,6 @@ class _HomePageState extends State<HomePage>
       ),
       body: Stack(
         children: [
-          // 🔥 Mapa (fundo)
           Positioned.fill(
             child: _carregando
                 ? const Center(child: CircularProgressIndicator())
@@ -262,7 +249,6 @@ class _HomePageState extends State<HomePage>
                       ),
           ),
 
-          // 🔥 Overlay escuro quando card está expandido
           if (_cardExpandido)
             Positioned.fill(
               child: GestureDetector(
@@ -273,13 +259,12 @@ class _HomePageState extends State<HomePage>
               ),
             ),
 
-          // 🔥 Card animado (sobe de baixo para cima)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeOutCubic,
             left: 0,
             right: 0,
-            bottom: _cardExpandido ? 0 : -400, // Esconde abaixo da tela
+            bottom: _cardExpandido ? 0 : -400,
             child: Container(
               height: 400,
               decoration: BoxDecoration(
@@ -297,7 +282,6 @@ class _HomePageState extends State<HomePage>
               ),
               child: Column(
                 children: [
-                  // 🔥 Handle (indicador de arraste)
                   GestureDetector(
                     onTap: _toggleCard,
                     child: Container(
@@ -310,8 +294,6 @@ class _HomePageState extends State<HomePage>
                       ),
                     ),
                   ),
-
-                  // 🔥 Título
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
@@ -331,12 +313,8 @@ class _HomePageState extends State<HomePage>
                       ],
                     ),
                   ),
-
                   const Divider(height: 1),
-
                   const SizedBox(height: 8),
-
-                  // 🔥 Subtitle
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
@@ -347,10 +325,7 @@ class _HomePageState extends State<HomePage>
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
-                  // 🔥 Botões de opções
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -393,7 +368,6 @@ class _HomePageState extends State<HomePage>
             ),
           ),
 
-          // 🔥 Botão flutuante "BATER PONTO" (sempre visível)
           Positioned(
             bottom: 30,
             left: 20,
@@ -423,7 +397,6 @@ class _HomePageState extends State<HomePage>
             ),
           ),
 
-          // 🔥 Informações de localização (mini)
           Positioned(
             top: 16,
             left: 16,
@@ -467,7 +440,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // 🔥 Widget de opção do card
   Widget _buildOpcaoPonto({
     required TipoPonto tipo,
     required IconData icon,
@@ -477,7 +449,7 @@ class _HomePageState extends State<HomePage>
     final isSelected = _tipoSelecionado == tipo;
 
     return InkWell(
-      onTap: _registrando ? null : () => _registrarPonto(tipo),
+      onTap: _registrando ? null : () => _selecionarTipoPonto(tipo),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
@@ -525,53 +497,55 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  // 🔥 MÉTODO DE LOGOUT CORRIGIDO (BuildContext)
   void _confirmarLogout() {
-  final navigator = Navigator.of(context);
-  final messenger = ScaffoldMessenger.of(context);
+    // 🔥 Guardar referências ANTES de qualquer async
+    final messenger = ScaffoldMessenger.of(context);
+    final currentContext = context;
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Sair do App'),
-      content: const Text('Deseja realmente sair?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: () async {
-            // 🔥 Fechar dialog ANTES do async
-            Navigator.pop(dialogContext);
-            
-            try {
-              await _authService.logout();
-              
-              // 🔥 Verificar se o widget ainda está montado
-              if (mounted) {
-                // 🔥 Usar pushReplacementNamed para evitar voltar
-                navigator.pushReplacementNamed('/login');
-              }
-            } catch (e) {
-              if (mounted) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text('❌ Erro ao sair: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sair do App'),
+        content: const Text('Deseja realmente sair?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
           ),
-          child: const Text('Sair'),
-        ),
-      ],
-    ),
-  );
-}
+          ElevatedButton(
+            onPressed: () async {
+              // 🔥 Fechar dialog ANTES do async
+              Navigator.pop(dialogContext);
+              
+              try {
+                await _authService.logout();
+                
+                // 🔥 Usar currentContext (guardado) em vez de context
+                if (currentContext.mounted) {
+                  currentContext.go('/login');
+                }
+              } catch (e) {
+                // 🔥 Usar messenger (guardado) em vez de ScaffoldMessenger.of(context)
+                if (currentContext.mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('❌ Erro ao sair: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sair'),
+          ),
+        ],
+      ),
+    );
+  }
 }
