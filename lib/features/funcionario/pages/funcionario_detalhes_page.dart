@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/funcionario_model.dart';
 import '../providers/funcionario_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -44,26 +45,23 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
   String? _fotoPath;
   final ImagePicker _imagePicker = ImagePicker();
 
-    @override
+  @override
   void initState() {
     super.initState();
     _carregarFuncionario();
     
-    // 🔥 VERIFICAR SE É O PRÓPRIO USUÁRIO
     final currentUser = FirebaseAuth.instance.currentUser;
     _isCurrentUser = currentUser?.uid == widget.funcionarioId;
 
-    // 🔥 DEBUG: Verificar no console
-  debugPrint('🔍 Current User: ${currentUser?.uid}');
-  debugPrint('🔍 Funcionario ID: ${widget.funcionarioId}');
-  debugPrint('🔍 É o próprio usuário? $_isCurrentUser');
-}
+    debugPrint('🔍 Current User: ${currentUser?.uid}');
+    debugPrint('🔍 Funcionario ID: ${widget.funcionarioId}');
+    debugPrint('🔍 É o próprio usuário? $_isCurrentUser');
+  }
 
   void _carregarFuncionario() {
     final provider = context.read<FuncionarioProvider>();
     _funcionario = provider.buscarPorId(widget.funcionarioId)!;
     
-    // Inicializar controllers com todos os dados
     _nomeController.text = _funcionario.nome;
     _emailController.text = _funcionario.email;
     _telefoneController.text = _funcionario.telefone;
@@ -408,109 +406,120 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
 
   // ============ MÉTODOS DE DESATIVAÇÃO/REATIVAÇÃO ============
   void _confirmarAlteracaoStatus(BuildContext context) {
-  final provider = context.read<FuncionarioProvider>();
-  final isAtivo = _funcionario.ativo;
-  final funcionarioId = _funcionario.id;
-  final nomeFuncionario = _funcionario.nome;
+    final provider = context.read<FuncionarioProvider>();
+    final isAtivo = _funcionario.ativo;
+    final funcionarioId = _funcionario.id;
+    final nomeFuncionario = _funcionario.nome;
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(isAtivo ? '⚠️ Desativar Funcionário' : '✅ Reativar Funcionário'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            isAtivo
-                ? 'Deseja DESATIVAR $nomeFuncionario?'
-                : 'Deseja REATIVAR $nomeFuncionario?',
-            style: const TextStyle(fontSize: 16),
-          ),
-          const SizedBox(height: 12),
-          if (isAtivo) ...[
-            const Text('• Não poderá mais bater ponto'),
-            const Text('• Histórico de pontos será mantido'),
-            const Text('• Pode ser reativado a qualquer momento'),
-          ] else ...[
-            const Text('• Voltará a poder bater ponto'),
-            const Text('• Histórico de pontos permanece intacto'),
-          ],
-          const SizedBox(height: 12),
-          Text(
-            isAtivo 
-                ? 'Esta ação NÃO exclui os registros de ponto.' 
-                : 'Apenas reativa o acesso.',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isAtivo ? '⚠️ Desativar Funcionário' : '✅ Reativar Funcionário'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isAtivo
+                  ? 'Deseja DESATIVAR $nomeFuncionario?'
+                  : 'Deseja REATIVAR $nomeFuncionario?',
+              style: const TextStyle(fontSize: 16),
             ),
+            const SizedBox(height: 12),
+            if (isAtivo) ...[
+              const Text('• Não poderá mais bater ponto'),
+              const Text('• Histórico de pontos será mantido'),
+              const Text('• Pode ser reativado a qualquer momento'),
+            ] else ...[
+              const Text('• Voltará a poder bater ponto'),
+              const Text('• Histórico de pontos permanece intacto'),
+            ],
+            const SizedBox(height: 12),
+            Text(
+              isAtivo 
+                  ? 'Esta ação NÃO exclui os registros de ponto.' 
+                  : 'Apenas reativa o acesso.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final messenger = ScaffoldMessenger.of(context);
+              
+              try {
+                debugPrint('🔍 [STATUS] Iniciando alteração...');
+                debugPrint('🔍 [STATUS] isAtivo: $isAtivo');
+                
+                if (isAtivo) {
+                  debugPrint('🔍 [STATUS] Chamando provider.desativar()...');
+                  await provider.desativar(funcionarioId);
+                  debugPrint('✅ [STATUS] provider.desativar() concluído!');
+                } else {
+                  debugPrint('🔍 [STATUS] Chamando provider.reativar()...');
+                  await provider.reativar(funcionarioId);
+                  debugPrint('✅ [STATUS] provider.reativar() concluído!');
+                }
+                
+                // 🔥 FORÇAR RECARREGAMENTO
+                await provider.carregarFuncionarios();
+                
+                // 🔥 VERIFICAR NO FIRESTORE
+                final doc = await FirebaseFirestore.instance
+                    .collection('funcionarios')
+                    .doc(funcionarioId)
+                    .get();
+                if (doc.exists) {
+                  debugPrint('🔍 [STATUS] Firestore: ativo = ${doc.data()?['ativo']}');
+                }
+                
+                if (mounted) {
+                  _carregarFuncionario();
+                  setState(() {});
+                  
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isAtivo 
+                            ? '❌ $nomeFuncionario foi DESATIVADO'
+                            : '✅ $nomeFuncionario foi REATIVADO'
+                      ),
+                      backgroundColor: isAtivo ? Colors.orange : Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                debugPrint('❌ [STATUS] ERRO: $e');
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('❌ Erro: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isAtivo ? Colors.orange : Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(isAtivo ? 'Desativar' : 'Reativar'),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: () async {
-            // 🔥 Fechar o dialog ANTES do async
-            Navigator.pop(dialogContext);
-            
-            // 🔥 Guardar referências do messenger ANTES do async
-            final messenger = ScaffoldMessenger.of(context);
-            
-            try {
-              if (isAtivo) {
-                await provider.desativar(funcionarioId);
-                await provider.carregarFuncionarios();
-                if (mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('❌ $nomeFuncionario foi DESATIVADO'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                }
-              } else {
-                await provider.reativar(funcionarioId);
-                if (mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text('✅ $nomeFuncionario foi REATIVADO'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              }
-              // 🔥 Recarregar dados
-              if (mounted) {
-                _carregarFuncionario();
-                setState(() {});
-              }
-            } catch (e) {
-              if (mounted) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text('❌ Erro: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isAtivo ? Colors.orange : Colors.green,
-            foregroundColor: Colors.white,
-          ),
-          child: Text(isAtivo ? 'Desativar' : 'Reativar'),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   // ============ MÉTODOS DE EDIÇÃO ============
   void _salvarEdicao() async {
@@ -521,6 +530,17 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
         const SnackBar(
           content: Text('Preencha todas as datas'),
           backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // 🔥 BLOQUEAR AUTO-DESATIVAÇÃO VIA EDIÇÃO
+    if (_isCurrentUser && !_ativo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Você não pode desativar a si mesmo!'),
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -593,7 +613,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
       appBar: AppBar(
         title: Text(_isEditing ? 'Editar Funcionário' : 'Detalhes do Funcionário'),
         actions: [
-          // Botão Editar
           if (!_isEditing)
             IconButton(
               icon: const Icon(Icons.edit),
@@ -615,7 +634,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
               },
             ),
           
-          // Botão Excluir (apenas se estiver inativo ou com confirmação)
           if (!_isEditing && !_funcionario.ativo)
             IconButton(
               icon: const Icon(
@@ -626,7 +644,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
               tooltip: 'Excluir permanentemente',
             ),
           
-          // Botão Cancelar (modo edição)
           if (_isEditing)
             IconButton(
               icon: const Icon(Icons.close),
@@ -650,7 +667,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
   Widget _buildVisualizacao() {
     return Column(
       children: [
-        // Card com Foto e Nome
         Card(
           elevation: 4,
           shape: RoundedRectangleBorder(
@@ -720,7 +736,6 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
 
         const SizedBox(height: 24),
 
-        // Card com todos os dados
         Card(
           elevation: 2,
           shape: RoundedRectangleBorder(
@@ -785,28 +800,29 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
 
         const SizedBox(height: 16),
 
-              // 🔥 SÓ MOSTRA SE NÃO FOR O PRÓPRIO ADMIN
-      if (!_isEditing && !_isCurrentUser && _funcionario.ativo)
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _confirmarAlteracaoStatus(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            icon: const Icon(Icons.block),
-            label: const Text(
-              'DESATIVAR FUNCIONÁRIO',
-              style: TextStyle(fontWeight: FontWeight.bold),
+                // 🔥 BOTÃO DESATIVAR (SÓ PARA OUTROS USUÁRIOS)
+                if (!_isEditing && !_isCurrentUser)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _confirmarAlteracaoStatus(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _funcionario.ativo ? Colors.orange : Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              icon: Icon(_funcionario.ativo ? Icons.block : Icons.check_circle),
+              label: Text(
+                _funcionario.ativo 
+                    ? 'DESATIVAR FUNCIONÁRIO' 
+                    : 'REATIVAR FUNCIONÁRIO',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
-        ),
-
+          
         const SizedBox(height: 12),
 
-        // Botão Editar
         if (!_isEditing)
           SizedBox(
             width: double.infinity,
@@ -1032,27 +1048,48 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
           ),
           const SizedBox(height: 24),
 
-          SwitchListTile(
-            title: const Text(
-              'Status do Funcionário',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-            subtitle: Text(
-              _ativo ? 'Ativo' : 'Inativo',
-              style: TextStyle(
-                color: _ativo ? Colors.green.shade700 : Colors.red.shade700,
-                fontWeight: FontWeight.bold,
+          // 🔥 MENSAGEM INFORMATIVA (SUBSTITUI O SWITCH)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _isCurrentUser 
+                  ? Colors.grey.shade50 
+                  : Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _isCurrentUser 
+                    ? Colors.grey.shade300 
+                    : Colors.blue.shade200,
               ),
             ),
-            value: _ativo,
-            onChanged: (value) {
-              setState(() => _ativo = value);
-            },
-            tileColor: _ativo ? Colors.green.shade50 : Colors.red.shade50,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+            child: Row(
+              children: [
+                Icon(
+                  _isCurrentUser 
+                      ? Icons.info_outline 
+                      : Icons.visibility_outlined,
+                  color: _isCurrentUser 
+                      ? Colors.grey.shade600 
+                      : Colors.blue.shade700,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _isCurrentUser
+                        ? '💡 Você não pode alterar seu próprio status de ativação.'
+                        : 'ℹ️ O status de ativação é controlado pelo botão "DESATIVAR" na visualização.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _isCurrentUser 
+                          ? Colors.grey.shade600 
+                          : Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+
           const SizedBox(height: 24),
 
           Row(
