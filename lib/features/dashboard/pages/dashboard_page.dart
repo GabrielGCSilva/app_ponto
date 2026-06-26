@@ -110,9 +110,9 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(width: 12),
                 _buildActionButton(
                   context,
-                  'Registrar Ponto',
+                  'Registrar Ponto (Admin)',
                   Icons.fingerprint,
-                  () => context.go('/ponto'),
+                  () => context.go('/registro-ponto-admin'),
                 ),
                 const SizedBox(width: 12),
                 _buildActionButton(

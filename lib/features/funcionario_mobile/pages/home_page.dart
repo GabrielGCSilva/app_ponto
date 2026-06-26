@@ -31,7 +31,7 @@ class _HomePageState extends State<HomePage>
   final AuthService _authService = AuthService();
 
   TipoPonto? _tipoSelecionado;
-  // ⚠️ IGNORAR: _registrando NÃO pode ser final porque muda de valor
+  // 🔥 IGNORAR O AVISO: _registrando NÃO pode ser final porque muda de valor
   bool _registrando = false;
 
   @override
@@ -105,44 +105,43 @@ class _HomePageState extends State<HomePage>
     });
   }
 
-  // 🔥 MÉTODO CORRIGIDO - BuildContext guardado
   Future<void> _selecionarTipoPonto(TipoPonto tipo) async {
-    // 🔥 Fechar o card
-    _toggleCard();
-    
-    // 🔥 Guardar referências ANTES do async
-    final messenger = ScaffoldMessenger.of(context);
-    final currentContext = context;
-    
-    // 🔥 Buscar usuário salvo
-    final usuario = await _authService.getUsuarioSalvo();
-    
-    if (usuario == null) {
-      if (currentContext.mounted) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('❌ Usuário não encontrado. Faça login novamente.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
-
-    // 🔥 Navegar para tela de autenticação
+  // 🔥 Fechar o card
+  _toggleCard();
+  
+  // 🔥 Guardar referências ANTES do async
+  final messenger = ScaffoldMessenger.of(context);
+  final currentContext = context;
+  
+  // 🔥 Buscar usuário salvo
+  final usuario = await _authService.getUsuarioSalvo();
+  
+  if (usuario == null) {
     if (currentContext.mounted) {
-      Navigator.push(
-        currentContext,
-        MaterialPageRoute(
-          builder: (context) => MetodoAutenticacaoPage(
-            tipoPonto: tipo,
-            funcionarioId: usuario['id'] ?? '',
-            funcionarioNome: usuario['nome'] ?? 'Funcionário',
-          ),
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('❌ Usuário não encontrado. Faça login novamente.'),
+          backgroundColor: Colors.red,
         ),
       );
     }
+    return;
   }
+
+  // 🔥 Navegar para tela de autenticação
+  if (currentContext.mounted) {
+    Navigator.push(
+      currentContext,
+      MaterialPageRoute(
+        builder: (context) => MetodoAutenticacaoPage(
+          tipoPonto: tipo,
+          funcionarioId: usuario['id'] ?? '',
+          funcionarioNome: usuario['nome'] ?? 'Funcionário',
+        ),
+      ),
+    );
+  }
+}
 
   @override
   Widget build(BuildContext context) {

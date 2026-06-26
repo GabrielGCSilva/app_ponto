@@ -5,7 +5,8 @@ import '../features/funcionario_mobile/pages/home_page.dart';
 import '../features/funcionario/pages/funcionarios_page.dart';
 import '../features/funcionario/pages/cadastrar_funcionario_page.dart';
 import '../features/funcionario/pages/funcionario_detalhes_page.dart';
-import '../features/funcionario_mobile/pages/registro_ponto_mobile_page.dart'; // ✅ CORRETO
+import '../features/funcionario_mobile/pages/registro_ponto_mobile_page.dart';
+import '../features/ponto/pages/registro_ponto_admin_page.dart'; // 🔥 NOVO
 import '../features/relatorios/pages/relatorios_page.dart';
 import '../features/configuracoes/pages/configuracoes_page.dart';
 import '../features/perfil/pages/perfil_page.dart';
@@ -25,7 +26,7 @@ final appRouter = GoRouter(
       builder: (context, state) => const DashboardPage(),
     ),
 
-    // HOME (Mobile)
+    // HOME (Mobile - Funcionário)
     GoRoute(
       path: '/home',
       builder: (context, state) => const HomePage(),
@@ -58,7 +59,13 @@ final appRouter = GoRouter(
       builder: (context, state) => const PerfilPage(),
     ),
 
-    // PONTO
+    // 🔥 PONTO ADMIN (NOVO)
+    GoRoute(
+      path: '/registro-ponto-admin',
+      builder: (context, state) => const RegistroPontoAdminPage(),
+    ),
+
+    // PONTO MOBILE (Funcionário)
     GoRoute(
       path: '/ponto',
       builder: (context, state) => const RegistroPontoMobilePage(),
