@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum TipoPonto {
-  entrada,
-  saidaAlmoco,
-  retornoAlmoco,
-  saida,
-}
+enum TipoPonto { entrada, saidaAlmoco, retornoAlmoco, saida }
 
 extension TipoPontoExtension on TipoPonto {
   String get label {

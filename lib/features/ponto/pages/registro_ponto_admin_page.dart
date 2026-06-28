@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/localizacao_service.dart';
+import '../../../core/services/validacao_ponto_service.dart';
 import '../providers/ponto_provider.dart';
 import '../models/registro_ponto_model.dart';
 import '../../funcionario/providers/funcionario_provider.dart';
@@ -16,13 +19,62 @@ class RegistroPontoAdminPage extends StatefulWidget {
 class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
   String? _funcionarioSelecionado;
   TipoPonto? _tipoSelecionado;
+  String? _metodoAutenticacao;
   bool _registrando = false;
+
+  // 🔥 CAMPOS MANUAIS
+  final TextEditingController _dataController = TextEditingController();
+  final TextEditingController _horaController = TextEditingController();
+  final TextEditingController _localController = TextEditingController();
+  bool _usarLocalizacaoAtual = true;
+  bool _usarDataHoraAtual = true;
+
+  final List<String> _metodos = ['Senha', 'Digital', 'Facial'];
+  final LocalizacaoService _localizacaoService = LocalizacaoService();
   final AuthService _authService = AuthService();
 
   @override
+  void initState() {
+    super.initState();
+    _dataController.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    _horaController.text = DateFormat('HH:mm').format(DateTime.now());
+    _localController.text = 'Carregando localização...';
+    _carregarLocalizacaoAtual();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PontoProvider>().carregarRegistros();
+    });
+  }
+
+  Future<void> _carregarLocalizacaoAtual() async {
+    try {
+      final endereco = await _localizacaoService.getEnderecoAtual();
+      if (mounted) {
+        setState(() {
+          _localController.text = endereco;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _localController.text = 'Local não identificado';
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _dataController.dispose();
+    _horaController.dispose();
+    _localController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final funcionarioProvider = context.watch<FuncionarioProvider>();
     final pontoProvider = context.watch<PontoProvider>();
+    final funcionarioProvider = context.watch<FuncionarioProvider>();
 
     return Scaffold(
       appBar: AppBar(
@@ -34,307 +86,550 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              funcionarioProvider.carregarFuncionarios();
               pontoProvider.carregarRegistros();
+              _carregarLocalizacaoAtual();
             },
             tooltip: 'Atualizar',
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '📝 Registrar Ponto para Funcionário',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Selecione o funcionário e o tipo de ponto para registrar.',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 24),
+      body: Row(
+        children: [
+          // 🔥 Painel Esquerdo: Formulário
+          Expanded(
+            flex: 2,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '📝 Registrar Ponto',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
-            // 🔥 DROPDOWN SIMPLIFICADO - SEM STACK
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: 'Funcionário *',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                prefixIcon: const Icon(Icons.person),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-              ),
-              value: _funcionarioSelecionado,
-              items: [
-                const DropdownMenuItem(
-                  value: null,
-                  child: Text('Selecione um funcionário...'),
-                ),
-                ...funcionarioProvider.funcionarios.map((f) {
-                  return DropdownMenuItem(
-                    value: f.id,
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Colors.blue.shade100,
-                            child: Text(
-                              f.nome.isNotEmpty ? f.nome[0].toUpperCase() : '?',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade800,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
+                      // Funcionário
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Funcionário *',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.person),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        initialValue: _funcionarioSelecionado,
+                        items: funcionarioProvider.funcionarios.map((f) {
+                          return DropdownMenuItem(
+                            value: f.id,
+                            child: Text(f.nome),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _funcionarioSelecionado = value;
+                            _tipoSelecionado = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Tipo de Ponto
+                      DropdownButtonFormField<TipoPonto>(
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de Registro *',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.timer),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        initialValue: _tipoSelecionado,
+                        items: TipoPonto.values.map((tipo) {
+                          return DropdownMenuItem(
+                            value: tipo,
+                            child: Row(
                               children: [
-                                Text(
-                                  f.nome,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 14,
+                                Icon(tipo.icon, color: tipo.color, size: 18),
+                                const SizedBox(width: 8),
+                                Text(tipo.label),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _tipoSelecionado = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Método de Autenticação
+                      DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Método de Autenticação *',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.security),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        initialValue: _metodoAutenticacao,
+                        items: _metodos.map((metodo) {
+                          return DropdownMenuItem(
+                            value: metodo,
+                            child: Text(metodo),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _metodoAutenticacao = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 🔥 SEÇÃO DATA E HORA
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _dataController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Data',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.calendar_today, size: 18),
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    ),
+                                    readOnly: _usarDataHoraAtual,
+                                    onTap: _usarDataHoraAtual ? null : _selecionarData,
                                   ),
                                 ),
-                                Text(
-                                  f.cargo,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _horaController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Hora',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.access_time, size: 18),
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    ),
+                                    readOnly: _usarDataHoraAtual,
+                                    onTap: _usarDataHoraAtual ? null : _selecionarHora,
                                   ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    _usarDataHoraAtual ? Icons.toggle_on : Icons.toggle_off,
+                                    color: _usarDataHoraAtual ? Colors.blue : Colors.grey,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _usarDataHoraAtual = !_usarDataHoraAtual;
+                                      if (_usarDataHoraAtual) {
+                                        _dataController.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
+                                        _horaController.text = DateFormat('HH:mm').format(DateTime.now());
+                                      }
+                                    });
+                                  },
+                                  tooltip: _usarDataHoraAtual ? 'Usando data/hora atual' : 'Editar manualmente',
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: f.ativo
-                                  ? Colors.green.shade100
-                                  : Colors.red.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              f.ativo ? 'Ativo' : 'Inativo',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: f.ativo
-                                    ? Colors.green.shade700
-                                    : Colors.red.shade700,
+                            if (!_usarDataHoraAtual)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  '⚠️ Editando manualmente',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.orange.shade700,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // 🔥 SEÇÃO LOCALIZAÇÃO
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _localController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Local',
+                                  border: InputBorder.none,
+                                  prefixIcon: Icon(Icons.location_on, size: 18),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                ),
+                                readOnly: _usarLocalizacaoAtual,
+                                style: const TextStyle(fontSize: 13),
                               ),
                             ),
-                          ),
-                        ],
+                            IconButton(
+                              icon: Icon(
+                                _usarLocalizacaoAtual ? Icons.toggle_on : Icons.toggle_off,
+                                color: _usarLocalizacaoAtual ? Colors.blue : Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _usarLocalizacaoAtual = !_usarLocalizacaoAtual;
+                                  if (_usarLocalizacaoAtual) {
+                                    _carregarLocalizacaoAtual();
+                                  }
+                                });
+                              },
+                              tooltip: _usarLocalizacaoAtual ? 'Usando localização atual' : 'Editar manualmente',
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                }),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _funcionarioSelecionado = value;
-                  _tipoSelecionado = null;
-                });
-              },
-            ),
+                      const SizedBox(height: 16),
 
-            const SizedBox(height: 24),
-
-            if (_funcionarioSelecionado != null) ...[
-              const Text(
-                'Selecione o tipo de ponto:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                      // Botão Registrar
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: _registrando || _funcionarioSelecionado == null || _tipoSelecionado == null
+                              ? null
+                              : _registrarPonto,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade700,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          icon: _registrando
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.check_circle, size: 20),
+                          label: Text(
+                            _registrando ? 'Registrando...' : 'Registrar Ponto',
+                            style: const TextStyle(fontSize: 15),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
+            ),
+          ),
+
+          // 🔥 Painel Direito: Lista de Registros
+          Expanded(
+            flex: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTipoPonto(
-                    tipo: TipoPonto.entrada,
-                    icon: Icons.login,
-                    cor: Colors.green,
-                    label: 'Entrada',
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        '📋 Últimos Registros',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${pontoProvider.registros.length} registros',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  _buildTipoPonto(
-                    tipo: TipoPonto.saidaAlmoco,
-                    icon: Icons.restaurant,
-                    cor: Colors.orange,
-                    label: 'Saída Alm.',
-                  ),
-                  const SizedBox(width: 12),
-                  _buildTipoPonto(
-                    tipo: TipoPonto.retornoAlmoco,
-                    icon: Icons.restaurant,
-                    cor: Colors.blue,
-                    label: 'Retorno Alm.',
-                  ),
-                  const SizedBox(width: 12),
-                  _buildTipoPonto(
-                    tipo: TipoPonto.saida,
-                    icon: Icons.logout,
-                    cor: Colors.red,
-                    label: 'Saída',
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: pontoProvider.carregando
+                        ? const Center(child: CircularProgressIndicator())
+                        : pontoProvider.registros.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.history, size: 48, color: Colors.grey),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Nenhum registro encontrado',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                itemCount: pontoProvider.registros.length,
+                                itemBuilder: (context, index) {
+                                  final registro = pontoProvider.registros[index];
+                                  return _buildRegistroCard(registro);
+                                },
+                              ),
                   ),
                 ],
               ),
-            ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const Spacer(),
-
-            if (_funcionarioSelecionado != null && _tipoSelecionado != null)
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: _registrando ? null : _registrarPonto,
-                  icon: _registrando
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.save),
-                  label: Text(
-                    _registrando
-                        ? 'Registrando...'
-                        : 'Registrar ${_tipoSelecionado!.label}',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
+  Widget _buildRegistroCard(RegistroPonto registro) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: ListTile(
+        dense: true,
+        leading: CircleAvatar(
+          radius: 16,
+          backgroundColor: registro.tipo.color.withValues(alpha: 0.2),
+          child: Icon(
+            registro.tipo.icon,
+            color: registro.tipo.color,
+            size: 16,
+          ),
+        ),
+        title: Text(
+          '${registro.funcionarioNome} - ${registro.tipo.label}',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          '📍 ${registro.endereco}',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              registro.horaFormatada,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              registro.dataFormatada,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTipoPonto({
-    required TipoPonto tipo,
-    required IconData icon,
-    required Color cor,
-    required String label,
-  }) {
-    final isSelected = _tipoSelecionado == tipo;
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _tipoSelecionado = tipo;
-          });
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: isSelected ? cor.withValues(alpha: 0.1) : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected ? cor : Colors.grey.shade300,
-              width: isSelected ? 2 : 1,
-            ),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: isSelected ? cor : Colors.grey.shade600),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? cor : Colors.grey.shade600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  // 🔥 MÉTODOS PARA SELECIONAR DATA E HORA
+  Future<void> _selecionarData() async {
+    final hoje = DateTime.now();
+    final dataSelecionada = await showDatePicker(
+      context: context,
+      initialDate: DateFormat('dd/MM/yyyy').parse(_dataController.text),
+      firstDate: DateTime(2020),
+      lastDate: hoje,
     );
+    if (dataSelecionada != null) {
+      setState(() {
+        _dataController.text = DateFormat('dd/MM/yyyy').format(dataSelecionada);
+      });
+    }
   }
 
-  Future<void> _registrarPonto() async {
+  Future<void> _selecionarHora() async {
+    final horaAtual = DateFormat('HH:mm').parse(_horaController.text);
+    final horaSelecionada = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(horaAtual),
+    );
+    if (horaSelecionada != null) {
+      setState(() {
+        final dataHora = DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+          horaSelecionada.hour,
+          horaSelecionada.minute,
+        );
+        _horaController.text = DateFormat('HH:mm').format(dataHora);
+      });
+    }
+  }
+
+  // 🔥 MÉTODO _registrarPonto CORRIGIDO
+  Future<void> _registrarPonto({bool sobrescrever = false}) async {
     final messenger = ScaffoldMessenger.of(context);
-    final provider = context.read<PontoProvider>();
+    final pontoProvider = context.read<PontoProvider>();
     final funcionarioProvider = context.read<FuncionarioProvider>();
+
+    if (_funcionarioSelecionado == null || _tipoSelecionado == null) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Preencha todos os campos obrigatórios'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
     setState(() => _registrando = true);
 
     try {
       final usuario = await _authService.getUsuarioSalvo();
-
       if (usuario == null) {
         throw Exception('Usuário não encontrado. Faça login novamente.');
       }
 
-      final funcionario = funcionarioProvider.buscarPorId(
+      final funcionario = funcionarioProvider.buscarPorId(_funcionarioSelecionado!);
+      if (funcionario == null) {
+        throw Exception('Funcionário não encontrado');
+      }
+
+      // 🔥 CORREÇÃO: Capturar data/hora editada
+      DateTime dataHoraRegistro;
+      if (_usarDataHoraAtual) {
+        dataHoraRegistro = DateTime.now();
+      } else {
+        try {
+          final dataPartes = _dataController.text.split('/');
+          final horaPartes = _horaController.text.split(':');
+          
+          dataHoraRegistro = DateTime(
+            int.parse(dataPartes[2]),      // ano
+            int.parse(dataPartes[1]),      // mês
+            int.parse(dataPartes[0]),      // dia
+            int.parse(horaPartes[0]),      // hora
+            int.parse(horaPartes[1]),      // minuto
+          );
+          debugPrint('📝 [ADMIN] Data/Hora editada: $dataHoraRegistro');
+        } catch (e) {
+          debugPrint('❌ [ADMIN] Erro ao parsear data/hora: $e');
+          dataHoraRegistro = DateTime.now();
+        }
+      }
+
+      // 🔥 CORREÇÃO: Capturar localização editada
+      String endereco;
+      double latitude;
+      double longitude;
+      
+      if (_usarLocalizacaoAtual) {
+        try {
+          final localizacao = await _localizacaoService.getLocalizacaoCompleta();
+          if (localizacao != null) {
+            latitude = localizacao['latitude'] as double;
+            longitude = localizacao['longitude'] as double;
+            endereco = localizacao['endereco'] as String;
+          } else {
+            throw Exception('Localização nula');
+          }
+        } catch (e) {
+          latitude = -23.5505;
+          longitude = -46.6333;
+          endereco = 'Desktop - Localização simulada';
+        }
+      } else {
+        endereco = _localController.text;
+        latitude = -23.5505;
+        longitude = -46.6333;
+      }
+
+      // 🔥 BUSCAR REGISTROS DO DIA
+      final registrosHoje = await pontoProvider.buscarRegistrosDoDia(
         _funcionarioSelecionado!,
       );
 
-      if (funcionario == null) {
-        throw Exception('Funcionário não encontrado.');
-      }
-
-      await provider.registrarPonto(
-        funcionarioId: _funcionarioSelecionado!,
-        funcionarioNome: funcionario.nome,
+      // 🔥 VALIDAR REGRAS
+      final validacao = ValidacaoPontoService.validar(
         tipo: _tipoSelecionado!,
-        metodoAutenticacao: 'Admin (Senha)',
-        sobrescrever: true,
+        registrosHoje: registrosHoje,
+        isAdmin: true,
+        isSobrescrevendo: sobrescrever,
       );
 
-      if (mounted) {
+      if (!validacao.permitido) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text(
-              '✅ ${_tipoSelecionado!.label} registrada com sucesso!',
-            ),
+            content: Text(validacao.mensagem),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        setState(() => _registrando = false);
+        return;
+      }
+
+      if (validacao.precisaConfirmar) {
+        _mostrarDialogSobrescrever();
+        return;
+      }
+
+      // 🔥 CORREÇÃO: Passar data/hora e localização para o provider
+      await pontoProvider.registrarPonto(
+        funcionarioId: funcionario.id,
+        funcionarioNome: funcionario.nome,
+        tipo: _tipoSelecionado!,
+        metodoAutenticacao: _metodoAutenticacao ?? 'Senha',
+        sobrescrever: sobrescrever,
+        dataHora: dataHoraRegistro,
+        endereco: endereco,
+        latitude: latitude,
+        longitude: longitude,
+      );
+
+      await pontoProvider.carregarRegistros();
+
+      if (mounted) {
+        setState(() {
+          _tipoSelecionado = null;
+          _metodoAutenticacao = null;
+        });
+
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('✅ Ponto registrado com sucesso!'),
             backgroundColor: Colors.green,
           ),
         );
-        setState(() {
-          _tipoSelecionado = null;
-        });
       }
     } catch (e) {
+      debugPrint('❌ [ADMIN] Erro: $e');
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('❌ Erro: ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Text('❌ Erro: $e'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -343,5 +638,70 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         setState(() => _registrando = false);
       }
     }
+  }
+
+  // 🔥 DIALOG PARA SOBRESCREVER
+  void _mostrarDialogSobrescrever() {
+    debugPrint('🔍 [ADMIN] ===== EXIBINDO DIALOG =====');
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('⚠️ Ponto já registrado hoje'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${_tipoSelecionado!.label} já foi registrado hoje para este funcionário.',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Sobrescrever irá DELETAR o registro anterior.',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              setState(() => _registrando = false);
+            },
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              debugPrint('🔍 [ADMIN] Usuário clicou em SOBRESCREVER');
+              Navigator.pop(dialogContext);
+              _registrarPonto(sobrescrever: true);
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Sobrescrever'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

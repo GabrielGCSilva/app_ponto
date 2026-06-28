@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/services/biometric_auth_service.dart';
+import '../../../core/services/validacao_ponto_service.dart';
 import '../../ponto/providers/ponto_provider.dart';
 import '../../ponto/models/registro_ponto_model.dart';
 
@@ -116,11 +117,39 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
     final provider = context.read<PontoProvider>();
 
     try {
+      // 🔥 BUSCAR REGISTROS DO DIA
+      final registrosHoje = await provider.buscarRegistrosDoDia(
+        widget.funcionarioId,
+      );
+
+      // 🔥 VALIDAR REGRAS (Funcionário NUNCA pode sobrescrever)
+      final validacao = ValidacaoPontoService.validar(
+        tipo: widget.tipoPonto,
+        registrosHoje: registrosHoje,
+        isAdmin: false,
+        isSobrescrevendo: false,
+      );
+
+      if (!validacao.permitido) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(validacao.mensagem),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
+      // 🔥 Registrar ponto
       await provider.registrarPonto(
         funcionarioId: widget.funcionarioId,
         funcionarioNome: widget.funcionarioNome,
         tipo: widget.tipoPonto,
         metodoAutenticacao: 'Biometria ($metodo)',
+        sobrescrever: false,
       );
 
       if (mounted) {
@@ -133,27 +162,22 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
         Navigator.popUntil(context, (route) => route.isFirst);
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Erro ao registrar ponto: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Erro ao registrar ponto: $e';
+        });
+      }
     }
   }
 
-  // 🔥 CORRIGIDO: Implementação do método para abrir configurações
   void _abrirConfiguracoesBiometria() {
-    // 🔥 Usar url_launcher para abrir configurações de segurança
-    // Import: import 'package:url_launcher/url_launcher.dart';
-    
+    // TODO: Implementar usando device_info_plus e url_launcher
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Configure a biometria nas configurações do seu dispositivo.'),
         backgroundColor: Colors.orange,
-        duration: Duration(seconds: 3),
       ),
     );
-    
-    // 🔥 Se quiser abrir as configurações do dispositivo:
-    // launchUrl(Uri.parse('app-settings:'));
   }
 
   void _voltarSelecionarMetodo() {

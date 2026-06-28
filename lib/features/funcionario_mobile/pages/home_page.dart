@@ -31,8 +31,7 @@ class _HomePageState extends State<HomePage>
   final AuthService _authService = AuthService();
 
   TipoPonto? _tipoSelecionado;
-  // 🔥 IGNORAR O AVISO: _registrando NÃO pode ser final porque muda de valor
-  bool _registrando = false;
+  final bool _registrando = false;
 
   @override
   void initState() {
@@ -43,7 +42,7 @@ class _HomePageState extends State<HomePage>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    
+
     _carregarDadosUsuario();
   }
 
@@ -106,42 +105,42 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _selecionarTipoPonto(TipoPonto tipo) async {
-  // 🔥 Fechar o card
-  _toggleCard();
-  
-  // 🔥 Guardar referências ANTES do async
-  final messenger = ScaffoldMessenger.of(context);
-  final currentContext = context;
-  
-  // 🔥 Buscar usuário salvo
-  final usuario = await _authService.getUsuarioSalvo();
-  
-  if (usuario == null) {
+    // 🔥 Fechar o card
+    _toggleCard();
+
+    // 🔥 Guardar referências ANTES do async
+    final messenger = ScaffoldMessenger.of(context);
+    final currentContext = context;
+
+    // 🔥 Buscar usuário salvo
+    final usuario = await _authService.getUsuarioSalvo();
+
+    if (usuario == null) {
+      if (currentContext.mounted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('❌ Usuário não encontrado. Faça login novamente.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    // 🔥 Navegar para tela de autenticação
     if (currentContext.mounted) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('❌ Usuário não encontrado. Faça login novamente.'),
-          backgroundColor: Colors.red,
+      Navigator.push(
+        currentContext,
+        MaterialPageRoute(
+          builder: (context) => MetodoAutenticacaoPage(
+            tipoPonto: tipo,
+            funcionarioId: usuario['id'] ?? '',
+            funcionarioNome: usuario['nome'] ?? 'Funcionário',
+          ),
         ),
       );
     }
-    return;
   }
-
-  // 🔥 Navegar para tela de autenticação
-  if (currentContext.mounted) {
-    Navigator.push(
-      currentContext,
-      MaterialPageRoute(
-        builder: (context) => MetodoAutenticacaoPage(
-          tipoPonto: tipo,
-          funcionarioId: usuario['id'] ?? '',
-          funcionarioNome: usuario['nome'] ?? 'Funcionário',
-        ),
-      ),
-    );
-  }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -173,88 +172,88 @@ class _HomePageState extends State<HomePage>
             child: _carregando
                 ? const Center(child: CircularProgressIndicator())
                 : _localizacaoDisponivel && _localizacaoAtual != null
-                    ? FlutterMap(
-                        mapController: _mapController,
-                        options: MapOptions(
-                          initialCenter: LatLng(
-                            _localizacaoAtual!.latitude ?? 0,
-                            _localizacaoAtual!.longitude ?? 0,
-                          ),
-                          initialZoom: 16,
-                          interactionOptions: const InteractionOptions(
-                            flags: InteractiveFlag.all,
-                          ),
-                        ),
-                        children: [
-                          TileLayer(
-                            urlTemplate:
-                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName: 'com.seu.app_ponto',
-                          ),
-                          MarkerLayer(
-                            markers: [
-                              Marker(
-                                width: 40,
-                                height: 40,
-                                point: LatLng(
-                                  _localizacaoAtual!.latitude ?? 0,
-                                  _localizacaoAtual!.longitude ?? 0,
-                                ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color:
-                                        Colors.blue.withValues(alpha: 0.3),
-                                    border: Border.all(
-                                      color: Colors.blue,
-                                      width: 3,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.my_location,
-                                    color: Colors.blue,
-                                    size: 24,
-                                  ),
+                ? FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: LatLng(
+                        _localizacaoAtual!.latitude ?? 0,
+                        _localizacaoAtual!.longitude ?? 0,
+                      ),
+                      initialZoom: 16,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.all,
+                      ),
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.seu.app_ponto',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            width: 40,
+                            height: 40,
+                            point: LatLng(
+                              _localizacaoAtual!.latitude ?? 0,
+                              _localizacaoAtual!.longitude ?? 0,
+                            ),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.blue.withValues(alpha: 0.3),
+                                border: Border.all(
+                                  color: Colors.blue,
+                                  width: 3,
                                 ),
                               ),
-                            ],
+                              child: const Icon(
+                                Icons.my_location,
+                                color: Colors.blue,
+                                size: 24,
+                              ),
+                            ),
                           ),
                         ],
-                      )
-                    : Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.location_off,
-                                size: 60, color: Colors.grey.shade400),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Localização indisponível',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Use o app no celular para GPS',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
+                    ],
+                  )
+                : Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.location_off,
+                          size: 60,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Localização indisponível',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Use o app no celular para GPS',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
           ),
 
           if (_cardExpandido)
             Positioned.fill(
               child: GestureDetector(
                 onTap: _toggleCard,
-                child: Container(
-                  color: Colors.black.withValues(alpha: 0.4),
-                ),
+                child: Container(color: Colors.black.withValues(alpha: 0.4)),
               ),
             ),
 
@@ -468,9 +467,7 @@ class _HomePageState extends State<HomePage>
               const SizedBox(
                 width: 24,
                 height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2),
               )
             else
               Icon(icon, color: cor, size: 32),
@@ -485,10 +482,7 @@ class _HomePageState extends State<HomePage>
             ),
             Text(
               descricao,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -517,10 +511,10 @@ class _HomePageState extends State<HomePage>
             onPressed: () async {
               // 🔥 Fechar dialog ANTES do async
               Navigator.pop(dialogContext);
-              
+
               try {
                 await _authService.logout();
-                
+
                 // 🔥 Usar currentContext (guardado) em vez de context
                 if (currentContext.mounted) {
                   currentContext.go('/login');
