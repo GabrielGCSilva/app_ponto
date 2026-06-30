@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../funcionario/providers/funcionario_provider.dart';
+import 'package:app_ponto/core/services/notification_service.dart';
+
 
 
 class LoginPage extends StatefulWidget {
@@ -365,6 +367,8 @@ class _LoginPageState extends State<LoginPage> {
     if (user == null) {
       throw Exception('Falha ao fazer login');
     }
+    // Vincular token ao usuário
+    await NotificationService().registrarToken();
 
     final userId = user.uid;
     debugPrint('🔍 UID do usuário: $userId');

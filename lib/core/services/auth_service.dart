@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'package:app_ponto/core/services/notification_service.dart';
+
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -175,6 +177,7 @@ class AuthService {
 
   Future<void> logout() async {
     debugPrint('🔍 [AUTH] ===== INICIANDO LOGOUT =====');
+    await NotificationService().removerToken();
     await _auth.signOut();
     await _limparDadosLocais();
     debugPrint('✅ [AUTH] Logout concluído!');

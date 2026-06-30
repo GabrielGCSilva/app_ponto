@@ -25,7 +25,7 @@ class NotificationService {
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       // 🔥 Registrar token
-      await _registrarToken();
+      await registrarToken();
 
       // 🔥 Escutar mensagens em primeiro plano
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -57,7 +57,7 @@ class NotificationService {
   }
 
   // 🔥 Registrar token no Firestore
-  Future<void> _registrarToken() async {
+  Future<void> registrarToken() async {
     try {
       final token = await _fcm.getToken();
       if (token != null) {

@@ -11,6 +11,7 @@ import 'core/services/notification_service.dart';
 import 'features/funcionario/providers/funcionario_provider.dart';
 import 'features/ponto/providers/ponto_provider.dart';
 import 'features/ponto/providers/alerta_provider.dart';
+import 'features/perfil/providers/historico_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +36,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (_) => AlertaProvider()..carregarAlertas(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => HistoricoProvider(),
         ),
       ],
       child: const AppPonto(),
