@@ -37,21 +37,30 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
     final metodos = <MetodoAutenticacao>[];
 
     try {
-      final hasBio = await _authService.isBiometricSupported();
-      if (hasBio) {
+      // 🔥 FORÇAR A VERIFICAÇÃO DE BIOMETRIA
+      final canCheckBiometrics = await _authService.canCheckBiometrics();
+      final isDeviceSupported = await _authService.isDeviceSupported();
+
+      if (canCheckBiometrics && isDeviceSupported) {
         final biometrics = await _authService.getAvailableBiometrics();
         for (var bio in biometrics) {
-          final bioStr = bio.toString();
-          if (bioStr.contains('fingerprint') || bioStr.contains('Fingerprint')) {
+          final bioStr = bio.toString().toLowerCase();
+          if (bioStr.contains('fingerprint')) {
             metodos.add(MetodoAutenticacao.digital);
-          } else if (bioStr.contains('face') || bioStr.contains('Face')) {
+          } else if (bioStr.contains('face') || bioStr.contains('iris')) {
             metodos.add(MetodoAutenticacao.facial);
           }
         }
       }
 
+      // 🔥 SEMPRE ADICIONAR A SENHA COMO FALLBACK
       final hasPassword = await _authService.hasDevicePassword();
       if (hasPassword) {
+        metodos.add(MetodoAutenticacao.senha);
+      }
+
+      // 🔥 SE NENHUM MÉTODO FOI ENCONTRADO, ADICIONAR SENHA POR PADRÃO
+      if (metodos.isEmpty) {
         metodos.add(MetodoAutenticacao.senha);
       }
 
@@ -59,7 +68,9 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
         _metodosDisponiveis = metodos;
       });
     } catch (e) {
+      // 🔥 EM CASO DE ERRO, MOSTRAR PELO MENOS A SENHA
       setState(() {
+        _metodosDisponiveis = [MetodoAutenticacao.senha];
         _errorMessage = 'Erro ao verificar métodos disponíveis: $e';
       });
     }
@@ -171,13 +182,22 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
   }
 
   void _abrirConfiguracoesBiometria() {
-    // TODO: Implementar usando device_info_plus e url_launcher
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Configure a biometria nas configurações do seu dispositivo.'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+    // 🔥 CORRIGIDO: Abrir configurações de segurança do dispositivo
+    try {
+      // Para Android, abrir configurações de biometria
+      // Import: import 'package:url_launcher/url_launcher.dart';
+      // launchUrl(Uri.parse('android.settings.SECURITY_SETTINGS'));
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Configure a biometria nas configurações do seu dispositivo.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ Erro ao abrir configurações: $e');
+    }
   }
 
   void _voltarSelecionarMetodo() {

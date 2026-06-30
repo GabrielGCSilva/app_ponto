@@ -15,9 +15,10 @@ import 'features/ponto/providers/alerta_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // 🔥 REMOVIDO: setPersistence() não funciona no Android
+  // await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
 
   await FirebaseMessaging.instance.requestPermission();
 
@@ -51,9 +52,7 @@ class AppPonto extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       locale: const Locale('pt', 'BR'),
-      supportedLocales: const [
-        Locale('pt', 'BR'),
-      ],
+      supportedLocales: const [Locale('pt', 'BR')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

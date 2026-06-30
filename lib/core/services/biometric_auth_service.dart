@@ -1,164 +1,91 @@
 import 'package:local_auth/local_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class BiometricAuthService {
   final LocalAuthentication _localAuth = LocalAuthentication();
 
-  /// Verifica se o dispositivo suporta autenticação biométrica
-  Future<bool> isBiometricSupported() async {
+  // 🔥 Verificar se o dispositivo permite checar biometria
+  Future<bool> canCheckBiometrics() async {
     try {
       return await _localAuth.canCheckBiometrics;
     } catch (e) {
+      debugPrint('❌ Erro ao verificar canCheckBiometrics: $e');
       return false;
     }
   }
 
-  /// Verifica se o dispositivo tem biometria cadastrada
-  Future<bool> hasBiometrics() async {
+  // 🔥 Verificar se o dispositivo suporta biometria
+  Future<bool> isDeviceSupported() async {
     try {
       return await _localAuth.isDeviceSupported();
     } catch (e) {
+      debugPrint('❌ Erro ao verificar isDeviceSupported: $e');
       return false;
     }
   }
 
-  /// Verifica se o dispositivo tem autenticação por senha (PIN, padrão, etc.)
-  Future<bool> hasDevicePassword() async {
+  // 🔥 Verificar se biometria é suportada
+  Future<bool> isBiometricSupported() async {
     try {
       return await _localAuth.isDeviceSupported();
     } catch (e) {
+      debugPrint('❌ Erro ao verificar suporte a biometria: $e');
       return false;
     }
   }
 
-  /// Lista os tipos de autenticação disponíveis no dispositivo
+  // 🔥 Obter biometrias disponíveis
   Future<List<BiometricType>> getAvailableBiometrics() async {
     try {
       return await _localAuth.getAvailableBiometrics();
     } catch (e) {
+      debugPrint('❌ Erro ao obter biometrias disponíveis: $e');
       return [];
     }
   }
 
-  /// Autentica usando biometria (digital ou facial)
-  Future<AuthResult> authenticateWithBiometrics({
-    required String motivo,
-    bool stickyAuth = true,
-  }) async {
+  // 🔥 Verificar se tem senha do dispositivo
+  Future<bool> hasDevicePassword() async {
     try {
-      final authenticated = await _localAuth.authenticate(
-        localizedReason: motivo,
-        options: AuthenticationOptions(
-          stickyAuth: stickyAuth,
-          biometricOnly: true,
-        ),
-      );
-
-      return AuthResult(
-        success: authenticated,
-        method: 'Biometrica',
-        errorMessage: authenticated ? null : 'Autenticação biométrica falhou',
-      );
+      // No Android, isDeviceSupported() retorna true se tem algum método
+      return await _localAuth.isDeviceSupported();
     } catch (e) {
-      return AuthResult(
-        success: false,
-        method: 'Biometrica',
-        errorMessage: _getErrorMessage(e),
-      );
+      // Se não conseguir verificar, assume que tem senha
+      debugPrint('⚠️ Erro ao verificar senha do dispositivo: $e');
+      return true;
     }
   }
 
-  /// Autentica usando senha do dispositivo (PIN, padrão, etc.)
-  Future<AuthResult> authenticateWithPassword({
-    required String motivo,
-  }) async {
-    try {
-      final authenticated = await _localAuth.authenticate(
-        localizedReason: motivo,
-        options: const AuthenticationOptions(
-          biometricOnly: false,
-        ),
-      );
-
-      return AuthResult(
-        success: authenticated,
-        method: 'Senha',
-        errorMessage: authenticated ? null : 'Autenticação por senha falhou',
-      );
-    } catch (e) {
-      return AuthResult(
-        success: false,
-        method: 'Senha',
-        errorMessage: _getErrorMessage(e),
-      );
-    }
-  }
-
-  /// Autentica usando qualquer método disponível (biometria ou senha)
-  Future<AuthResult> authenticateWithAny({
-    required String motivo,
-  }) async {
-    try {
-      // Primeiro tenta biometria
-      final hasBio = await isBiometricSupported();
-      if (hasBio) {
-        final result = await authenticateWithBiometrics(motivo: motivo);
-        if (result.success) return result;
-      }
-
-      // Se falhar ou não tiver biometria, tenta senha
-      return await authenticateWithPassword(motivo: motivo);
-    } catch (e) {
-      return AuthResult(
-        success: false,
-        method: 'Nenhum',
-        errorMessage: _getErrorMessage(e),
-      );
-    }
-  }
-
-  /// Método unificado de autenticação
-  Future<AuthResult> authenticate({
+  // 🔥 Autenticar
+  Future<BiometricAuthResult> authenticate({
     required String metodo,
     required String motivo,
   }) async {
-    switch (metodo.toLowerCase()) {
-      case 'biometrica':
-      case 'digital':
-      case 'facial':
-        return await authenticateWithBiometrics(motivo: motivo);
-      case 'senha':
-        return await authenticateWithPassword(motivo: motivo);
-      default:
-        return await authenticateWithAny(motivo: motivo);
-    }
-  }
+    try {
+      final isAuthenticated = await _localAuth.authenticate(
+        localizedReason: motivo,
+        options: AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: metodo != 'Senha',
+        ),
+      );
 
-  String _getErrorMessage(dynamic error) {
-    if (error is Exception) {
-      final errorStr = error.toString();
-      if (errorStr.contains('NotEnrolled')) {
-        return 'Nenhuma biometria cadastrada no dispositivo. Cadastre uma nas configurações.';
-      }
-      if (errorStr.contains('Lockout')) {
-        return 'Muitas tentativas. Tente novamente mais tarde.';
-      }
-      if (errorStr.contains('NotAvailable')) {
-        return 'Este método não está disponível no seu dispositivo.';
-      }
+      return BiometricAuthResult(
+        success: isAuthenticated,
+        errorMessage: isAuthenticated ? null : 'Autenticação falhou',
+      );
+    } catch (e) {
+      return BiometricAuthResult(
+        success: false,
+        errorMessage: 'Erro na autenticação: $e',
+      );
     }
-    return 'Erro ao autenticar: ${error.toString()}';
   }
 }
 
-/// Resultado da autenticação
-class AuthResult {
+class BiometricAuthResult {
   final bool success;
-  final String method;
   final String? errorMessage;
 
-  AuthResult({
-    required this.success,
-    required this.method,
-    this.errorMessage,
-  });
+  BiometricAuthResult({required this.success, this.errorMessage});
 }

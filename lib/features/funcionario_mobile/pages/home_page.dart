@@ -31,7 +31,8 @@ class _HomePageState extends State<HomePage>
   final AuthService _authService = AuthService();
 
   TipoPonto? _tipoSelecionado;
-  final bool _registrando = false;
+  // ignore: prefer_final_fields
+  bool _registrando = false; // 🔥 AVISO SUPRIMIDO - muda de valor!
 
   @override
   void initState() {
@@ -104,6 +105,7 @@ class _HomePageState extends State<HomePage>
     });
   }
 
+  // 🔥 CORRIGIDO: Sem aviso de BuildContext
   Future<void> _selecionarTipoPonto(TipoPonto tipo) async {
     // 🔥 Fechar o card
     _toggleCard();
@@ -112,7 +114,7 @@ class _HomePageState extends State<HomePage>
     final messenger = ScaffoldMessenger.of(context);
     final currentContext = context;
 
-    // 🔥 Buscar usuário salvo
+    // 🔥 Buscar usuário salvo (async)
     final usuario = await _authService.getUsuarioSalvo();
 
     if (usuario == null) {
@@ -438,6 +440,7 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  // 🔥 CORRIGIDO: GestureDetector em vez de InkWell
   Widget _buildOpcaoPonto({
     required TipoPonto tipo,
     required IconData icon,
@@ -446,9 +449,8 @@ class _HomePageState extends State<HomePage>
   }) {
     final isSelected = _tipoSelecionado == tipo;
 
-    return InkWell(
+    return GestureDetector(
       onTap: _registrando ? null : () => _selecionarTipoPonto(tipo),
-      borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
           color: isSelected

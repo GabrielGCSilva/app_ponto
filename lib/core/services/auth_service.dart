@@ -7,6 +7,8 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static const String _keyUsuarioLogado = 'usuario_logado';
+  static const String _keyExpiracaoLogin = 'expiracao_login';
+  static const int _diasExpiracao = 120; // 🔥 4 MESES
 
   Future<User?> login(String email, String senha) async {
     try {
@@ -32,11 +34,37 @@ class AuthService {
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     final isLogged = prefs.getBool(_keyUsuarioLogado) ?? false;
-    debugPrint('🔍 [AUTH] isLoggedIn: $isLogged');
-    return isLogged;
+    
+    if (!isLogged) {
+      debugPrint('🔍 [AUTH] isLoggedIn: false (não logado)');
+      return false;
+    }
+    
+    // 🔥 VERIFICAR EXPIRAÇÃO
+    final expiracaoStr = prefs.getString(_keyExpiracaoLogin);
+    if (expiracaoStr == null) {
+      debugPrint('🔍 [AUTH] isLoggedIn: false (sem data de expiração)');
+      await _limparDadosLocais();
+      return false;
+    }
+    
+    try {
+      final expiracao = DateTime.parse(expiracaoStr);
+      if (DateTime.now().isAfter(expiracao)) {
+        debugPrint('🔍 [AUTH] isLoggedIn: false (login expirado)');
+        await _limparDadosLocais();
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ [AUTH] Erro ao validar expiração: $e');
+      return false;
+    }
+    
+    debugPrint('🔍 [AUTH] isLoggedIn: true (válido até $expiracaoStr)');
+    return true;
   }
 
-  // 🔥 Salvar login (CORRIGIDO)
+  // 🔥 SALVAR LOGIN COM EXPIRAÇÃO
   Future<void> _salvarLogin(User? user) async {
     debugPrint('🔍 [AUTH] ===== SALVANDO LOGIN =====');
     final prefs = await SharedPreferences.getInstance();
@@ -47,10 +75,15 @@ class AuthService {
       debugPrint('🔍 [AUTH]   email: ${user.email}');
       debugPrint('🔍 [AUTH]   displayName: ${user.displayName}');
       
+      // 🔥 SALVAR EXPIRAÇÃO (120 DIAS)
+      final expiracao = DateTime.now().add(Duration(days: _diasExpiracao));
+      debugPrint('🔍 [AUTH] Login válido até: $expiracao');
+      
       await prefs.setBool(_keyUsuarioLogado, true);
       await prefs.setString('usuario_id', user.uid);
       await prefs.setString('usuario_email', user.email ?? '');
       await prefs.setString('usuario_nome', user.displayName ?? 'Funcionário');
+      await prefs.setString(_keyExpiracaoLogin, expiracao.toIso8601String());
       
       // 🔥 VERIFICAR SE SALVOU
       final testId = prefs.getString('usuario_id');
@@ -104,6 +137,7 @@ class AuthService {
 
       if (!ativo) {
         debugPrint('⚠️ [AUTH] Usuário está INATIVO!');
+        await _limparDadosLocais();
         return null;
       }
 
@@ -153,6 +187,7 @@ class AuthService {
     await prefs.remove('usuario_id');
     await prefs.remove('usuario_email');
     await prefs.remove('usuario_nome');
+    await prefs.remove(_keyExpiracaoLogin);
     debugPrint('🗑️ [AUTH] Dados locais limpos');
   }
 }
