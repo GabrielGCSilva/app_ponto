@@ -13,6 +13,7 @@ import 'features/ponto/providers/ponto_provider.dart';
 import 'features/ponto/providers/alerta_provider.dart';
 import 'features/perfil/providers/historico_provider.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
