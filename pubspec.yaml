@@ -50,8 +50,12 @@ dependencies:
   # 📊 Excel
   excel: ^4.0.0
 
-  # 🌐 Universal HTML (substitui o dart:html) ⬅️ ⬅️ ⬅️ ADICIONE ESTA LINHA!
+  # 🌐 Universal HTML (substitui o dart:html)
   universal_html: ^2.2.3
+
+  # 📁 Compartilhamento e Arquivos (para Mobile/Desktop)
+  share_plus: ^12.0.2
+  path_provider: ^2.1.6
 
   # 🌐 Internacionalização
   flutter_localizations:

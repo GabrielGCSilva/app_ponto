@@ -1,11 +1,13 @@
-import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:universal_html/html.dart' as html;
 import '../services/relatorio_service.dart';
 import '../services/excel_export_service.dart';
+import '../services/excel_export_helper.dart';
 import '../models/relatorio_model.dart';
 import '../../funcionario/providers/funcionario_provider.dart';
 
@@ -860,7 +862,9 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
   }
 
-  // 🔥 EXPORTAR EXCEL
+  // ============================================================
+  // 🔥 EXPORTAR EXCEL - MULTIPLATAFORMA
+  // ============================================================
   void _exportarExcel() async {
     if (_relatorio == null) return;
 
@@ -870,21 +874,25 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         throw Exception('Erro ao gerar Excel');
       }
 
-      // 🔥 BAIXAR O ARQUIVO (WEB)
-      final blob = html.Blob([
-        bytes,
-      ], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..download =
-            'espelho_ponto_${_relatorio!.funcionarioNome}_${_relatorio!.mes}_${_relatorio!.ano}.xlsx';
-      anchor.click();
-      html.Url.revokeObjectUrl(url);
+      final nomeArquivo =
+          'espelho_ponto_${_relatorio!.funcionarioNome}_${_relatorio!.mes}_${_relatorio!.ano}.xlsx';
+
+      if (kIsWeb) {
+        // 🔥 WEB: Usar universal_html (já importado no topo)
+        await _exportarExcelWeb(bytes, nomeArquivo);
+      } else {
+        // 🔥 ANDROID/iOS/DESKTOP: Salvar e compartilhar
+        await ExcelExportHelper.salvarECompartilhar(bytes, nomeArquivo);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Excel exportado com sucesso!'),
+          SnackBar(
+            content: Text(
+              kIsWeb
+                  ? '✅ Excel exportado com sucesso!'
+                  : '✅ Excel salvo e compartilhado!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -901,7 +909,25 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     }
   }
 
+  // 🌐 Exportar para Web usando universal_html
+  Future<void> _exportarExcelWeb(Uint8List bytes, String nomeArquivo) async {
+    try {
+      // 🔥 Usando universal_html (importado no topo do arquivo)
+      final blob = html.Blob([
+        bytes,
+      ], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)..download = nomeArquivo;
+      anchor.click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      throw Exception('Erro ao exportar para Web: $e');
+    }
+  }
+
+  // ============================================================
   // 🔥 COMPARTILHAR LINK
+  // ============================================================
   void _compartilharLink() {
     if (_relatorio == null) return;
 
