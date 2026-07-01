@@ -5,8 +5,29 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
+      groups:
+        - firebase_credentials
     scripts:
-      - flutter pub get
-      - flutter build ios --release --no-codesign
+      - name: Install dependencies
+        script: flutter pub get
+      
+      - name: Build iOS
+        script: flutter build ios --release --no-codesign
+      
+      - name: Create IPA
+        script: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r app_ponto.ipa Payload
+          mv app_ponto.ipa ../../../
     artifacts:
-      - build/ios/iphoneos/*.app
+      - build/ios/ipa/*.ipa
+      - app_ponto.ipa
+    publishing:
+      firebase:
+        firebase_service_account: $FIREBASE_SERVICE_ACCOUNT
+        ios:
+          app_id: "1:331527965536:ios:709b70726dc23c6a2fec05"  # ⚠️ SUBSTITUA PELO SEU APP_ID
+          groups: 
+            - "iosTesters"
