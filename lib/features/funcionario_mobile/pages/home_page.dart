@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/localizacao_service.dart';
 import '../../ponto/models/registro_ponto_model.dart';
-import 'perfil_page.dart';
+import '../../perfil/pages/perfil_page.dart';
 import 'metodo_autenticacao_page.dart';
 
 class HomePage extends StatefulWidget {

@@ -12,7 +12,6 @@ class HistoricoDiaWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 🔥 Cabeçalho do dia
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
@@ -36,10 +35,7 @@ class HistoricoDiaWidget extends StatelessWidget {
             ],
           ),
         ),
-        
-        // 🔥 Lista de registros
         ...dia.registros.map((r) => HistoricoRegistroWidget(registro: r)),
-        
         const Divider(height: 24, thickness: 0.5),
       ],
     );

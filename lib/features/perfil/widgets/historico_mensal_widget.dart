@@ -12,7 +12,7 @@ class HistoricoMensalWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 🔥 Cabeçalho do mês
+        // 🔥 CABEÇALHO DO MÊS (SEM TOTAL DE HORAS)
         Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
@@ -30,32 +30,12 @@ class HistoricoMensalWidget extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Total: ${mes.totalHorasFormatado}h',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue.shade800,
-                  ),
-                ),
-              ),
+              // 🔥 REMOVIDO O TOTAL DE HORAS
             ],
           ),
         ),
         const SizedBox(height: 8),
-        
-        // 🔥 Dias do mês
         ...mes.dias.map((d) => HistoricoDiaWidget(dia: d)),
-        
         const SizedBox(height: 16),
       ],
     );

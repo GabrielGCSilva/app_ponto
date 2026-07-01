@@ -37,7 +37,11 @@ class RelatorioService {
   }
 
   // 🔥 BUSCAR REGISTROS DO FUNCIONÁRIO
-  Future<List<RegistroPonto>> _buscarRegistros(String funcionarioId, int mes, int ano) async {
+  Future<List<RegistroPonto>> _buscarRegistros(
+    String funcionarioId,
+    int mes,
+    int ano,
+  ) async {
     final inicio = DateTime(ano, mes, 1);
     final fim = DateTime(ano, mes + 1, 1);
 
@@ -74,20 +78,28 @@ class RelatorioService {
     for (int dia = 1; dia <= diasNoMes; dia++) {
       final data = DateTime(ano, mes, dia);
       final diaSemana = data.weekday;
-      
-      final registrosDia = registros.where((r) =>
-          r.dataHora.year == ano &&
-          r.dataHora.month == mes &&
-          r.dataHora.day == dia
-      ).toList();
+
+      final registrosDia = registros
+          .where(
+            (r) =>
+                r.dataHora.year == ano &&
+                r.dataHora.month == mes &&
+                r.dataHora.day == dia,
+          )
+          .toList();
 
       // 🔥 BUSCAR OS 4 TIPOS DE REGISTRO
       final entrada = registrosDia.firstWhere(
         (r) => r.tipo == TipoPonto.entrada,
         orElse: () => RegistroPonto(
-          id: '', funcionarioId: '', funcionarioNome: '',
-          dataHora: data, tipo: TipoPonto.entrada,
-          latitude: 0, longitude: 0, endereco: '',
+          id: '',
+          funcionarioId: '',
+          funcionarioNome: '',
+          dataHora: data,
+          tipo: TipoPonto.entrada,
+          latitude: 0,
+          longitude: 0,
+          endereco: '',
           metodoAutenticacao: '',
         ),
       );
@@ -95,9 +107,14 @@ class RelatorioService {
       final saidaAlmoco = registrosDia.firstWhere(
         (r) => r.tipo == TipoPonto.saidaAlmoco,
         orElse: () => RegistroPonto(
-          id: '', funcionarioId: '', funcionarioNome: '',
-          dataHora: data, tipo: TipoPonto.saidaAlmoco,
-          latitude: 0, longitude: 0, endereco: '',
+          id: '',
+          funcionarioId: '',
+          funcionarioNome: '',
+          dataHora: data,
+          tipo: TipoPonto.saidaAlmoco,
+          latitude: 0,
+          longitude: 0,
+          endereco: '',
           metodoAutenticacao: '',
         ),
       );
@@ -105,9 +122,14 @@ class RelatorioService {
       final retornoAlmoco = registrosDia.firstWhere(
         (r) => r.tipo == TipoPonto.retornoAlmoco,
         orElse: () => RegistroPonto(
-          id: '', funcionarioId: '', funcionarioNome: '',
-          dataHora: data, tipo: TipoPonto.retornoAlmoco,
-          latitude: 0, longitude: 0, endereco: '',
+          id: '',
+          funcionarioId: '',
+          funcionarioNome: '',
+          dataHora: data,
+          tipo: TipoPonto.retornoAlmoco,
+          latitude: 0,
+          longitude: 0,
+          endereco: '',
           metodoAutenticacao: '',
         ),
       );
@@ -115,9 +137,14 @@ class RelatorioService {
       final saida = registrosDia.firstWhere(
         (r) => r.tipo == TipoPonto.saida,
         orElse: () => RegistroPonto(
-          id: '', funcionarioId: '', funcionarioNome: '',
-          dataHora: data, tipo: TipoPonto.saida,
-          latitude: 0, longitude: 0, endereco: '',
+          id: '',
+          funcionarioId: '',
+          funcionarioNome: '',
+          dataHora: data,
+          tipo: TipoPonto.saida,
+          latitude: 0,
+          longitude: 0,
+          endereco: '',
           metodoAutenticacao: '',
         ),
       );
@@ -140,17 +167,20 @@ class RelatorioService {
       if (entrada.id.isNotEmpty && saida.id.isNotEmpty) {
         final entradaHora = entrada.dataHora;
         final saidaHora = saida.dataHora;
-        
+
         totalDuration = saidaHora.difference(entradaHora);
-        
+
         if (saidaAlmoco.id.isNotEmpty && retornoAlmoco.id.isNotEmpty) {
-          final intervalo = retornoAlmoco.dataHora.difference(saidaAlmoco.dataHora);
+          final intervalo = retornoAlmoco.dataHora.difference(
+            saidaAlmoco.dataHora,
+          );
           totalDuration = totalDuration - intervalo;
         }
-        
+
         final horas = totalDuration.inHours;
         final minutos = totalDuration.inMinutes.remainder(60);
-        total = '${horas.toString().padLeft(2, '0')}:${minutos.toString().padLeft(2, '0')}';
+        total =
+            '${horas.toString().padLeft(2, '0')}:${minutos.toString().padLeft(2, '0')}';
       }
 
       // 🔥 TOTAL PREVISTO DO DIA
@@ -168,18 +198,24 @@ class RelatorioService {
         localizacao = retornoAlmoco.endereco;
       }
 
-      dias.add(RelatorioDiario(
-        data: data,
-        diaSemana: diasSemana[diaSemana]!,
-        evento: evento,
-        entrada: entrada.id.isNotEmpty ? _formatarHora(entrada.dataHora) : '',
-        saidaAlmoco: saidaAlmoco.id.isNotEmpty ? _formatarHora(saidaAlmoco.dataHora) : '',
-        retornoAlmoco: retornoAlmoco.id.isNotEmpty ? _formatarHora(retornoAlmoco.dataHora) : '',
-        saida: saida.id.isNotEmpty ? _formatarHora(saida.dataHora) : '',
-        total: total,
-        totalPrevisto: previsto,
-        localizacao: localizacao,
-      ));
+      dias.add(
+        RelatorioDiario(
+          data: data,
+          diaSemana: diasSemana[diaSemana]!,
+          evento: evento,
+          entrada: entrada.id.isNotEmpty ? _formatarHora(entrada.dataHora) : '',
+          saidaAlmoco: saidaAlmoco.id.isNotEmpty
+              ? _formatarHora(saidaAlmoco.dataHora)
+              : '',
+          retornoAlmoco: retornoAlmoco.id.isNotEmpty
+              ? _formatarHora(retornoAlmoco.dataHora)
+              : '',
+          saida: saida.id.isNotEmpty ? _formatarHora(saida.dataHora) : '',
+          total: total,
+          totalPrevisto: previsto,
+          localizacao: localizacao,
+        ),
+      );
     }
 
     return dias;
@@ -190,130 +226,170 @@ class RelatorioService {
   }
 
   // 🔥 CALCULAR TOTAIS
+  // 🔥 MÉTODO CORRIGIDO
   RelatorioMensal _calcularTotais(
-  List<RelatorioDiario> dias,
-  Map<String, dynamic> funcionario,
-  int mes,
-  int ano,
-) {
-  // 🔥 TOTAL PREVISTO FIXO = 194:00
-  final totalPrevistoFixo = CalculadoraHoras.stringToDuration('194:00');
-  
-  Duration totalEfetivo = Duration.zero;
-  Duration totalExtras60 = Duration.zero;
-  Duration totalExtras100 = Duration.zero;
-  Duration totalHorasExtras = Duration.zero;
-  Duration totalHorasExtrasFimSemana = Duration.zero; // Sábado + Domingo
-
-  for (var dia in dias) {
-    final previsto = CalculadoraHoras.stringToDuration(
-      getHorarioPrevisto(_diaSemanaNumero(dia.diaSemana))
+    List<RelatorioDiario> dias,
+    Map<String, dynamic> funcionario,
+    int mes,
+    int ano,
+  ) {
+    // 🔥 VERIFICAR SE HÁ REGISTROS
+    final temRegistros = dias.any(
+      (dia) =>
+          dia.entrada.isNotEmpty ||
+          dia.saida.isNotEmpty ||
+          dia.saidaAlmoco.isNotEmpty ||
+          dia.retornoAlmoco.isNotEmpty,
     );
-    
-    final entrada = CalculadoraHoras.stringToDuration(dia.entrada);
-    final saidaAlmoco = CalculadoraHoras.stringToDuration(dia.saidaAlmoco);
-    final retornoAlmoco = CalculadoraHoras.stringToDuration(dia.retornoAlmoco);
-    final saida = CalculadoraHoras.stringToDuration(dia.saida);
-    
-    Duration efetivo = Duration.zero;
-    
-    if (entrada > Duration.zero && saida > Duration.zero) {
-      efetivo = saida - entrada;
-      
-      if (saidaAlmoco > Duration.zero && retornoAlmoco > Duration.zero) {
-        final intervalo = retornoAlmoco - saidaAlmoco;
-        efetivo = efetivo - intervalo;
-      }
-    }
-    
-    // 🔥 SÓ CALCULAR PARA DIAS QUE JÁ PASSARAM
-    final hoje = DateTime.now();
-    final dataDia = dia.data;
-    if (dataDia.isBefore(hoje) || dataDia.isAtSameMomentAs(hoje)) {
-      
-      // 🔥 DIAS ÚTEIS - CALCULAR EXTRAS (diferença positiva)
-      if (dia.diaSemana != 'Sáb' && dia.diaSemana != 'Dom') {
-        final diffDia = efetivo - previsto;
-        if (diffDia > Duration.zero) {
-          totalHorasExtras += diffDia;
+
+    // 🔥 TOTAL PREVISTO FIXO = 194:00
+    final totalPrevistoFixo = CalculadoraHoras.stringToDuration('194:00');
+
+    Duration totalEfetivo = Duration.zero;
+    Duration totalExtras60 = Duration.zero;
+    Duration totalExtras100 = Duration.zero;
+    Duration totalHorasExtras = Duration.zero;
+    Duration totalHorasExtrasFimSemana = Duration.zero;
+
+    for (var dia in dias) {
+      final previsto = CalculadoraHoras.stringToDuration(
+        getHorarioPrevisto(_diaSemanaNumero(dia.diaSemana)),
+      );
+
+      final entrada = CalculadoraHoras.stringToDuration(dia.entrada);
+      final saidaAlmoco = CalculadoraHoras.stringToDuration(dia.saidaAlmoco);
+      final retornoAlmoco = CalculadoraHoras.stringToDuration(
+        dia.retornoAlmoco,
+      );
+      final saida = CalculadoraHoras.stringToDuration(dia.saida);
+
+      Duration efetivo = Duration.zero;
+
+      if (entrada > Duration.zero && saida > Duration.zero) {
+        efetivo = saida - entrada;
+
+        if (saidaAlmoco > Duration.zero && retornoAlmoco > Duration.zero) {
+          final intervalo = retornoAlmoco - saidaAlmoco;
+          efetivo = efetivo - intervalo;
         }
       }
-      
-      // 🔥 FINAIS DE SEMANA - EXTRA 60% E 100%
-      if (dia.diaSemana == 'Sáb') {
-        final extra60 = (efetivo.inMinutes * 0.6).round();
-        totalExtras60 += Duration(minutes: extra60);
-        totalHorasExtrasFimSemana += efetivo; // ✅ Sábado entra nas extras
-      } else if (dia.diaSemana == 'Dom') {
-        totalExtras100 += efetivo;
-        totalHorasExtrasFimSemana += efetivo; // ✅ Domingo entra nas extras
+
+      // 🔥 SÓ CALCULAR PARA DIAS QUE JÁ PASSARAM
+      final hoje = DateTime.now();
+      final dataDia = dia.data;
+      if (dataDia.isBefore(hoje) || dataDia.isAtSameMomentAs(hoje)) {
+        if (dia.diaSemana != 'Sáb' && dia.diaSemana != 'Dom') {
+          final diffDia = efetivo - previsto;
+          if (diffDia > Duration.zero) {
+            totalHorasExtras += diffDia;
+          }
+        }
+
+        if (dia.diaSemana == 'Sáb') {
+          final extra60 = (efetivo.inMinutes * 0.6).round();
+          totalExtras60 += Duration(minutes: extra60);
+          totalHorasExtrasFimSemana += efetivo;
+        } else if (dia.diaSemana == 'Dom') {
+          totalExtras100 += efetivo;
+          totalHorasExtrasFimSemana += efetivo;
+        }
+
+        totalEfetivo += efetivo;
       }
-      
-      totalEfetivo += efetivo;
     }
+
+    // 🔥 HORAS DEVIDAS
+    final totalHorasDevidas = totalPrevistoFixo - totalEfetivo;
+    final horasDevidas = totalHorasDevidas.isNegative
+        ? '00:00'
+        : CalculadoraHoras.durationToString(totalHorasDevidas);
+
+    // 🔥 HORAS EXTRAS
+    final totalExtrasTotal = totalHorasExtras + totalHorasExtrasFimSemana;
+    final horasExtras = CalculadoraHoras.durationToString(totalExtrasTotal);
+
+    // 🔥 HORAS MENSAIS
+    final horasMensais = Duration(hours: 220);
+    final horasMensaisStr = CalculadoraHoras.durationToString(horasMensais);
+
+    // 🔥 🔥 CORREÇÃO: SUBTOTAL SÓ SE HOUVER REGISTROS
+    Duration subtotal;
+    if (temRegistros) {
+      final horasMensaisDur = CalculadoraHoras.stringToDuration(
+        horasMensaisStr,
+      );
+      final horasDevidasDur = CalculadoraHoras.stringToDuration(horasDevidas);
+      final horasExtrasDur = CalculadoraHoras.stringToDuration(horasExtras);
+
+      subtotal =
+          horasMensaisDur -
+          horasDevidasDur +
+          horasExtrasDur +
+          totalExtras60 +
+          totalExtras100;
+    } else {
+      subtotal = Duration.zero;
+    }
+
+    debugPrint('📊 ===== RELATÓRIO =====');
+    debugPrint('  Tem registros? $temRegistros');
+    debugPrint('  Total Previsto FIXO: 194:00');
+    debugPrint(
+      '  Total Efetivo: ${CalculadoraHoras.durationToString(totalEfetivo)}',
+    );
+    debugPrint('  Horas Devidas: $horasDevidas');
+    debugPrint(
+      '  Horas Extras (dias úteis): ${CalculadoraHoras.durationToString(totalHorasExtras)}',
+    );
+    debugPrint(
+      '  Horas Extras (fim de semana): ${CalculadoraHoras.durationToString(totalHorasExtrasFimSemana)}',
+    );
+    debugPrint('  Horas Extras TOTAL: $horasExtras');
+    debugPrint(
+      '  Extra 60%: ${CalculadoraHoras.durationToString(totalExtras60)}',
+    );
+    debugPrint(
+      '  Extra 100%: ${CalculadoraHoras.durationToString(totalExtras100)}',
+    );
+    debugPrint('  Subtotal: ${CalculadoraHoras.durationToString(subtotal)}');
+
+    return RelatorioMensal(
+      funcionarioId: funcionario['id'] ?? '',
+      funcionarioNome: funcionario['nome'] ?? '',
+      cargo: funcionario['cargo'] ?? '',
+      mes: mes,
+      ano: ano,
+      dias: dias,
+      horasMensais: horasMensaisStr,
+      totalPrevisto: '194:00',
+      totalEfetivo: CalculadoraHoras.durationToString(totalEfetivo),
+      horasDevidas: horasDevidas,
+      horasExtrasTrabalhadas: horasExtras,
+      horasExtras60: CalculadoraHoras.durationToString(totalExtras60),
+      horasExtras100: CalculadoraHoras.durationToString(totalExtras100),
+      subtotal: CalculadoraHoras.durationToString(subtotal),
+      total: CalculadoraHoras.durationToString(subtotal),
+    );
   }
-
-  // 🔥 🔥 HORAS DEVIDAS = TOTAL PREVISTO - TOTAL EFETIVO
-  final totalHorasDevidas = totalPrevistoFixo - totalEfetivo;
-  final horasDevidas = totalHorasDevidas.isNegative 
-      ? '00:00' 
-      : CalculadoraHoras.durationToString(totalHorasDevidas);
-
-  // 🔥 🔥 HORAS EXTRAS = Extras dias úteis + Sábado + Domingo
-  final totalExtrasTotal = totalHorasExtras + totalHorasExtrasFimSemana;
-  final horasExtras = CalculadoraHoras.durationToString(totalExtrasTotal);
-
-  // 🔥 HORAS MENSAIS
-  final horasMensais = Duration(hours: 220);
-  final horasMensaisStr = CalculadoraHoras.durationToString(horasMensais);
-
-  // 🔥 SUBTOTAL
-  final horasMensaisDur = CalculadoraHoras.stringToDuration(horasMensaisStr);
-  final horasDevidasDur = CalculadoraHoras.stringToDuration(horasDevidas);
-  final horasExtrasDur = CalculadoraHoras.stringToDuration(horasExtras);
-  
-  final subtotal = horasMensaisDur - horasDevidasDur + horasExtrasDur + totalExtras60 + totalExtras100;
-
-  debugPrint('📊 ===== RELATÓRIO =====');
-  debugPrint('  Total Previsto FIXO: 194:00');
-  debugPrint('  Total Efetivo: ${CalculadoraHoras.durationToString(totalEfetivo)}');
-  debugPrint('  Horas Devidas: $horasDevidas');
-  debugPrint('  Horas Extras (dias úteis): ${CalculadoraHoras.durationToString(totalHorasExtras)}');
-  debugPrint('  Horas Extras (fim de semana): ${CalculadoraHoras.durationToString(totalHorasExtrasFimSemana)}');
-  debugPrint('  Horas Extras TOTAL: $horasExtras');
-  debugPrint('  Extra 60%: ${CalculadoraHoras.durationToString(totalExtras60)}');
-  debugPrint('  Extra 100%: ${CalculadoraHoras.durationToString(totalExtras100)}');
-  debugPrint('  Subtotal: ${CalculadoraHoras.durationToString(subtotal)}');
-
-  return RelatorioMensal(
-    funcionarioId: funcionario['id'] ?? '',
-    funcionarioNome: funcionario['nome'] ?? '',
-    cargo: funcionario['cargo'] ?? '',
-    mes: mes,
-    ano: ano,
-    dias: dias,
-    horasMensais: horasMensaisStr,
-    totalPrevisto: '194:00',
-    totalEfetivo: CalculadoraHoras.durationToString(totalEfetivo),
-    horasDevidas: horasDevidas,
-    horasExtrasTrabalhadas: horasExtras,
-    horasExtras60: CalculadoraHoras.durationToString(totalExtras60),
-    horasExtras100: CalculadoraHoras.durationToString(totalExtras100),
-    subtotal: CalculadoraHoras.durationToString(subtotal),
-    total: CalculadoraHoras.durationToString(subtotal),
-  );
-}
 
   int _diaSemanaNumero(String dia) {
     switch (dia) {
-      case 'Seg': return 1;
-      case 'Ter': return 2;
-      case 'Qua': return 3;
-      case 'Qui': return 4;
-      case 'Sex': return 5;
-      case 'Sáb': return 6;
-      case 'Dom': return 7;
-      default: return 1;
+      case 'Seg':
+        return 1;
+      case 'Ter':
+        return 2;
+      case 'Qua':
+        return 3;
+      case 'Qui':
+        return 4;
+      case 'Sex':
+        return 5;
+      case 'Sáb':
+        return 6;
+      case 'Dom':
+        return 7;
+      default:
+        return 1;
     }
   }
 }

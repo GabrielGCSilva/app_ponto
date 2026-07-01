@@ -16,7 +16,6 @@ class HistoricoRegistroWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          // 🔥 Ícone do tipo
           Container(
             width: 40,
             height: 40,
@@ -27,8 +26,6 @@ class HistoricoRegistroWidget extends StatelessWidget {
             child: Icon(icon, color: cor, size: 20),
           ),
           const SizedBox(width: 12),
-          
-          // 🔥 Tipo e local
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,8 +49,6 @@ class HistoricoRegistroWidget extends StatelessWidget {
               ],
             ),
           ),
-          
-          // 🔥 Horário
           Text(
             DateFormat('HH:mm').format(registro.dataHora),
             style: const TextStyle(

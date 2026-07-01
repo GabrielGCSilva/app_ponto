@@ -1,29 +1,33 @@
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/relatorio_service.dart';
+import '../services/excel_export_service.dart';
 import '../models/relatorio_model.dart';
 import '../../funcionario/providers/funcionario_provider.dart';
 
+// ============================================================
+// 📊 PÁGINA PRINCIPAL DE RELATÓRIOS
+// ============================================================
 class RelatoriosPage extends StatefulWidget {
   final String? funcionarioId;
   final int? mes;
   final int? ano;
 
-  const RelatoriosPage({
-    super.key,
-    this.funcionarioId,
-    this.mes,
-    this.ano,
-  });
+  const RelatoriosPage({super.key, this.funcionarioId, this.mes, this.ano});
 
   @override
   State<RelatoriosPage> createState() => _RelatoriosPageState();
 }
 
+// ============================================================
+// 📊 STATE DA PÁGINA DE RELATÓRIOS
+// ============================================================
 class _RelatoriosPageState extends State<RelatoriosPage> {
+  // 🔥 VARIÁVEIS DE ESTADO
   String? _funcionarioSelecionado;
   int _mesSelecionado = DateTime.now().month;
   int _anoSelecionado = DateTime.now().year;
@@ -31,23 +35,24 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   RelatorioMensal? _relatorio;
   bool _mostrarRelatorio = false;
 
+  // 🔥 SERVIÇOS
   final RelatorioService _service = RelatorioService();
 
+  // ============================================================
+  // 🔥 CICLO DE VIDA
+  // ============================================================
   @override
   void initState() {
     super.initState();
-    // 🔥 Se recebeu parâmetros, usar eles
-    if (widget.funcionarioId != null) {
+
+    // Validar e definir parâmetros recebidos
+    if (widget.funcionarioId != null && widget.funcionarioId!.isNotEmpty) {
       _funcionarioSelecionado = widget.funcionarioId;
     }
-    if (widget.mes != null) {
-      _mesSelecionado = widget.mes!;
-    }
-    if (widget.ano != null) {
-      _anoSelecionado = widget.ano!;
-    }
-    
-    // 🔥 Se tiver funcionarioId, gerar relatório automaticamente
+    _mesSelecionado = widget.mes ?? DateTime.now().month;
+    _anoSelecionado = widget.ano ?? DateTime.now().year;
+
+    // Gerar relatório automaticamente se tiver funcionário
     if (_funcionarioSelecionado != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _gerarRelatorio();
@@ -55,121 +60,101 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     }
   }
 
+  // ============================================================
+  // 🔥 BUILD PRINCIPAL
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     final funcionarioProvider = context.watch<FuncionarioProvider>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('📊 Relatórios'),
-        backgroundColor: Colors.blue.shade700,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/dashboard'),
-          tooltip: 'Voltar ao Dashboard',
-        ),
-        actions: [
-          if (_relatorio != null && _mostrarRelatorio)
-            IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: _exportarCSV,
-              tooltip: 'Exportar CSV',
-            ),
-          if (_relatorio != null && _mostrarRelatorio)
-            IconButton(
-              icon: const Icon(Icons.ios_share),
-              onPressed: _compartilharLink,
-              tooltip: 'Compartilhar link da tabela',
-            ),
-        ],
-      ),
+      appBar: _buildAppBar(),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Gerar Relatório Mensal',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Selecione o funcionário e o período para gerar o espelho de ponto.',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-              ),
-            ),
+            _buildCabecalho(),
             const SizedBox(height: 20),
-
-            // 🔥 FILTROS COM LAYOUT RESPONSIVO
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    _buildFiltros(funcionarioProvider),
-                    const SizedBox(height: 16),
-                    _buildBotoesAcao(),
-                  ],
-                ),
-              ),
-            ),
-            
+            _buildFiltrosCard(funcionarioProvider),
             const SizedBox(height: 20),
-
-            // 🔥 RELATÓRIO
-            if (_mostrarRelatorio && _relatorio != null)
-              Expanded(
-                child: _buildRelatorio(_relatorio!),
-              )
-            else if (!_mostrarRelatorio && _funcionarioSelecionado != null)
-              const Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.search, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'Clique em "Gerar" para visualizar o relatório',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              const Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.person_add, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'Selecione um funcionário para começar',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            _buildConteudoPrincipal(),
           ],
         ),
       ),
     );
   }
 
-  // 🔥 FILTROS RESPONSIVOS
-  Widget _buildFiltros(FuncionarioProvider funcionarioProvider) {
+  // ============================================================
+  // 🔥 COMPONENTES DA UI
+  // ============================================================
+
+  // 📱 APP BAR
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: const Text('📊 Relatórios'),
+      backgroundColor: Colors.blue.shade700,
+      foregroundColor: Colors.white,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.go('/dashboard'),
+        tooltip: 'Voltar ao Dashboard',
+      ),
+      actions: [
+        if (_relatorio != null && _mostrarRelatorio) ...[
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            onPressed: _exportarExcel,
+            tooltip: 'Exportar Excel',
+          ),
+          IconButton(
+            icon: const Icon(Icons.ios_share),
+            onPressed: _compartilharLink,
+            tooltip: 'Compartilhar link da tabela',
+          ),
+        ],
+      ],
+    );
+  }
+
+  // 📝 CABEÇALHO
+  Widget _buildCabecalho() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Gerar Relatório Mensal',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Selecione o funcionário e o período para gerar o espelho de ponto.',
+          style: TextStyle(color: Colors.grey.shade600),
+        ),
+      ],
+    );
+  }
+
+  // 🎯 CARD DE FILTROS
+  Widget _buildFiltrosCard(FuncionarioProvider funcionarioProvider) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildFiltrosResponsivos(funcionarioProvider),
+            const SizedBox(height: 16),
+            _buildBotoesAcao(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 📱 FILTROS RESPONSIVOS
+  Widget _buildFiltrosResponsivos(FuncionarioProvider funcionarioProvider) {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth > 800) {
@@ -180,13 +165,9 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                 child: _buildDropdownFuncionario(funcionarioProvider),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: _buildDropdownMes(),
-              ),
+              Expanded(child: _buildDropdownMes()),
               const SizedBox(width: 12),
-              Expanded(
-                child: _buildDropdownAno(),
-              ),
+              Expanded(child: _buildDropdownAno()),
               const SizedBox(width: 12),
               _buildBotaoGerar(),
             ],
@@ -212,6 +193,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  // 👤 DROPDOWN FUNCIONÁRIO
   Widget _buildDropdownFuncionario(FuncionarioProvider funcionarioProvider) {
     return DropdownButtonFormField<String>(
       decoration: const InputDecoration(
@@ -222,10 +204,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       ),
       initialValue: _funcionarioSelecionado,
       items: funcionarioProvider.funcionarios.map((f) {
-        return DropdownMenuItem(
-          value: f.id,
-          child: Text(f.nome),
-        );
+        return DropdownMenuItem(value: f.id, child: Text(f.nome));
       }).toList(),
       onChanged: (value) {
         setState(() {
@@ -237,6 +216,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  // 📅 DROPDOWN MÊS
   Widget _buildDropdownMes() {
     return DropdownButtonFormField<int>(
       decoration: const InputDecoration(
@@ -247,10 +227,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       ),
       initialValue: _mesSelecionado,
       items: List.generate(12, (i) => i + 1).map((mes) {
-        return DropdownMenuItem(
-          value: mes,
-          child: Text(_getNomeMes(mes)),
-        );
+        return DropdownMenuItem(value: mes, child: Text(_getNomeMes(mes)));
       }).toList(),
       onChanged: (value) {
         setState(() {
@@ -262,6 +239,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  // 📆 DROPDOWN ANO
   Widget _buildDropdownAno() {
     return DropdownButtonFormField<int>(
       decoration: const InputDecoration(
@@ -272,10 +250,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       ),
       initialValue: _anoSelecionado,
       items: List.generate(10, (i) => DateTime.now().year - i).map((ano) {
-        return DropdownMenuItem(
-          value: ano,
-          child: Text(ano.toString()),
-        );
+        return DropdownMenuItem(value: ano, child: Text(ano.toString()));
       }).toList(),
       onChanged: (value) {
         setState(() {
@@ -287,6 +262,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  // 🔍 BOTÃO GERAR
   Widget _buildBotaoGerar() {
     return ElevatedButton.icon(
       onPressed: _funcionarioSelecionado == null ? null : _gerarRelatorio,
@@ -305,13 +281,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
+  // 🎯 BOTÕES DE AÇÃO
   Widget _buildBotoesAcao() {
     return Row(
       children: [
@@ -319,16 +294,14 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           icon: Icons.picture_as_pdf,
           label: 'Espelho de Ponto',
           color: Colors.blue,
-          onTap: _funcionarioSelecionado == null ? null : () {
-            _gerarRelatorio();
-          },
+          onTap: _funcionarioSelecionado == null ? null : _gerarRelatorio,
         ),
         const SizedBox(width: 12),
         _buildActionButton(
           icon: Icons.table_chart,
           label: 'Exportar Excel',
           color: Colors.green,
-          onTap: _relatorio == null ? null : _exportarCSV,
+          onTap: _relatorio == null ? null : _exportarExcel,
         ),
         const SizedBox(width: 12),
         _buildActionButton(
@@ -341,6 +314,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  // 🔘 BOTÃO DE AÇÃO GENÉRICO
   Widget _buildActionButton({
     required IconData icon,
     required String label,
@@ -363,18 +337,88 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  // 📊 CONTEÚDO PRINCIPAL
+  Widget _buildConteudoPrincipal() {
+    if (_carregando) {
+      return const Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Gerando relatório...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_mostrarRelatorio && _relatorio != null) {
+      return Expanded(child: _buildRelatorio(_relatorio!));
+    }
+
+    if (_funcionarioSelecionado != null) {
+      return const Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Clique em "Gerar" para visualizar o relatório',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return const Expanded(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.person_add, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Selecione um funcionário para começar',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // 🔥 MÉTODOS DE NEGÓCIO
+  // ============================================================
+
+  // 📅 NOME DO MÊS
   String _getNomeMes(int mes) {
     const meses = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
     ];
     return meses[mes - 1];
   }
 
+  // 🔍 GERAR RELATÓRIO
   Future<void> _gerarRelatorio() async {
     if (_funcionarioSelecionado == null) return;
-
-    final messenger = ScaffoldMessenger.of(context);
 
     setState(() {
       _carregando = true;
@@ -398,34 +442,27 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _carregando = false);
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('❌ Erro ao gerar relatório: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        _mostrarErro('Erro ao gerar relatório', e.toString());
       }
     }
   }
 
+  // 📊 EXIBIR RELATÓRIO
   Widget _buildRelatorio(RelatorioMensal relatorio) {
     return Card(
       elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildCabecalho(relatorio),
+              _buildCabecalhoRelatorio(relatorio),
               const SizedBox(height: 16),
-              _buildTabela(relatorio),
+              _buildTabelaRelatorio(relatorio),
               const SizedBox(height: 16),
-              _buildTotais(relatorio),
+              _buildTotaisRelatorio(relatorio),
             ],
           ),
         ),
@@ -433,7 +470,8 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
-  Widget _buildCabecalho(RelatorioMensal relatorio) {
+  // 📋 CABEÇALHO DO RELATÓRIO
+  Widget _buildCabecalhoRelatorio(RelatorioMensal relatorio) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -476,151 +514,236 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
-  Widget _buildTabela(RelatorioMensal relatorio) {
-  return Container(
-    decoration: BoxDecoration(
-      border: Border.all(color: Colors.grey.shade400),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 10,
-        horizontalMargin: 8,
-        headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
-        border: TableBorder.all(
-          color: Colors.grey.shade400,
-          width: 1,
-        ), // 🔥 ADICIONA BORDAS EM TODAS AS CÉLULAS
-        columns: const [
-          DataColumn(
-            label: Text('DATA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('EVENTO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('ENTRADA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('S.ALMOÇO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('R.ALMOÇO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('SAÍDA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('TOTAL PREVISTO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('TOTAL EFETIVO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('HORAS DEVIDAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('HORAS EXTRAS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('EXTRA 60%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('EXTRA 100%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-          DataColumn(
-            label: Text('LOCALIZAÇÃO', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-          ),
-        ],
-        rows: relatorio.dias.map((dia) {
-          final totalPrevisto = dia.totalPrevisto;
-          final totalEfetivo = dia.total;
-          
-          final previstoDur = CalculadoraHoras.stringToDuration(totalPrevisto);
-          final efetivoDur = CalculadoraHoras.stringToDuration(totalEfetivo);
-          final diff = efetivoDur - previstoDur;
-          
-          String horasDevidasDia = '00:00';
-          String horasExtrasDia = '00:00';
-          
-          if (diff.isNegative) {
-            horasDevidasDia = CalculadoraHoras.durationToString(diff.abs());
-          } else if (diff > Duration.zero) {
-            horasExtrasDia = CalculadoraHoras.durationToString(diff);
-          }
-          
-          String extra60Dia = '00:00';
-          String extra100Dia = '00:00';
-          if (dia.diaSemana == 'Sáb') {
-            final total = CalculadoraHoras.stringToDuration(dia.total);
-            final extra60 = (total.inMinutes * 0.6).round();
-            extra60Dia = CalculadoraHoras.durationToString(Duration(minutes: extra60));
-          } else if (dia.diaSemana == 'Dom') {
-            extra100Dia = dia.total;
-          }
-
-          return DataRow(
-            color: dia.evento == 'FALTA'
-                ? WidgetStateProperty.all(Colors.red.shade50)
-                : dia.evento == 'FOLGA'
-                    ? WidgetStateProperty.all(Colors.green.shade50)
-                    : null,
-            cells: [
-              DataCell(Text(
-                '${dia.data.day.toString().padLeft(2, '0')}/${dia.data.month.toString().padLeft(2, '0')}',
-                style: const TextStyle(fontSize: 11),
-              )),
-              DataCell(Text(dia.evento ?? '', style: const TextStyle(fontSize: 11))),
-              DataCell(Text(dia.entrada, style: const TextStyle(fontSize: 11))),
-              DataCell(Text(dia.saidaAlmoco, style: const TextStyle(fontSize: 11))),
-              DataCell(Text(dia.retornoAlmoco, style: const TextStyle(fontSize: 11))),
-              DataCell(Text(dia.saida, style: const TextStyle(fontSize: 11))),
-              DataCell(Text(dia.total, style: TextStyle(
-                fontWeight: dia.total != '00:00' ? FontWeight.bold : FontWeight.normal,
-                color: dia.total != '00:00' ? Colors.blue.shade700 : Colors.grey,
-                fontSize: 11,
-              ))),
-              DataCell(Text(totalPrevisto, style: const TextStyle(fontSize: 11))),
-              DataCell(Text(totalEfetivo, style: const TextStyle(fontSize: 11))),
-              DataCell(Text(horasDevidasDia, style: TextStyle(
-                fontSize: 11,
-                color: horasDevidasDia != '00:00' ? Colors.red : Colors.grey,
-              ))),
-              DataCell(Text(horasExtrasDia, style: TextStyle(
-                fontSize: 11,
-                color: horasExtrasDia != '00:00' ? Colors.green : Colors.grey,
-              ))),
-              DataCell(Text(extra60Dia, style: TextStyle(
-                fontSize: 11,
-                color: extra60Dia != '00:00' ? Colors.orange : Colors.grey,
-              ))),
-              DataCell(Text(extra100Dia, style: TextStyle(
-                fontSize: 11,
-                color: extra100Dia != '00:00' ? Colors.purple : Colors.grey,
-              ))),
-              DataCell(Container(
-                constraints: const BoxConstraints(maxWidth: 150),
-                child: Text(
-                  dia.localizacao,
-                  style: const TextStyle(fontSize: 10),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              )),
-            ],
-          );
-        }).toList(),
+  // 📊 TABELA DO RELATÓRIO
+  Widget _buildTabelaRelatorio(RelatorioMensal relatorio) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade400),
+        borderRadius: BorderRadius.circular(8),
       ),
-    ),
-  );
-}
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columnSpacing: 10,
+          horizontalMargin: 8,
+          headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
+          border: TableBorder.all(color: Colors.grey.shade400, width: 1),
+          columns: _buildColunasTabela(),
+          rows: relatorio.dias.map((dia) => _buildLinhaTabela(dia)).toList(),
+        ),
+      ),
+    );
+  }
 
-  Widget _buildTotais(RelatorioMensal relatorio) {
-    final corHorasDevidas = relatorio.horasDevidas != '00:00' ? Colors.red : Colors.grey;
-    final corHorasExtras = relatorio.horasExtrasTrabalhadas != '00:00' ? Colors.green : Colors.grey;
+  // 📋 COLUNAS DA TABELA
+  List<DataColumn> _buildColunasTabela() {
+    return const [
+      DataColumn(
+        label: Text(
+          'DATA',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'EVENTO',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'ENTRADA',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'S.ALMOÇO',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'R.ALMOÇO',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'SAÍDA',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'TOTAL',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'TOTAL PREVISTO',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'TOTAL EFETIVO',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'HORAS DEVIDAS',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'HORAS EXTRAS',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'EXTRA 60%',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'EXTRA 100%',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'LOCALIZAÇÃO',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+    ];
+  }
+
+  // 📝 LINHA DA TABELA
+  DataRow _buildLinhaTabela(RelatorioDiario dia) {
+    final totalPrevisto = dia.totalPrevisto;
+    final totalEfetivo = dia.total;
+    final diff = _calcularDiferenca(totalEfetivo, totalPrevisto);
+
+    String horasDevidasDia = '00:00';
+    String horasExtrasDia = '00:00';
+
+    if (diff.isNegative) {
+      horasDevidasDia = _durationToString(diff.abs());
+    } else if (diff > Duration.zero) {
+      horasExtrasDia = _durationToString(diff);
+    }
+
+    String extra60Dia = '00:00';
+    String extra100Dia = '00:00';
+
+    if (dia.diaSemana == 'Sáb') {
+      final total = _stringToDuration(dia.total);
+      final extra60 = (total.inMinutes * 0.6).round();
+      extra60Dia = _durationToString(Duration(minutes: extra60));
+    } else if (dia.diaSemana == 'Dom') {
+      extra100Dia = dia.total;
+    }
+
+    return DataRow(
+      color: _getCorLinha(dia.evento),
+      cells: [
+        DataCell(
+          Text(_formatarData(dia.data), style: const TextStyle(fontSize: 11)),
+        ),
+        DataCell(Text(dia.evento ?? '', style: const TextStyle(fontSize: 11))),
+        DataCell(Text(dia.entrada, style: const TextStyle(fontSize: 11))),
+        DataCell(Text(dia.saidaAlmoco, style: const TextStyle(fontSize: 11))),
+        DataCell(Text(dia.retornoAlmoco, style: const TextStyle(fontSize: 11))),
+        DataCell(Text(dia.saida, style: const TextStyle(fontSize: 11))),
+        DataCell(
+          Text(
+            dia.total,
+            style: TextStyle(
+              fontWeight: dia.total != '00:00'
+                  ? FontWeight.bold
+                  : FontWeight.normal,
+              color: dia.total != '00:00' ? Colors.blue.shade700 : Colors.grey,
+              fontSize: 11,
+            ),
+          ),
+        ),
+        DataCell(Text(totalPrevisto, style: const TextStyle(fontSize: 11))),
+        DataCell(Text(totalEfetivo, style: const TextStyle(fontSize: 11))),
+        DataCell(
+          Text(
+            horasDevidasDia,
+            style: TextStyle(
+              fontSize: 11,
+              color: horasDevidasDia != '00:00' ? Colors.red : Colors.grey,
+            ),
+          ),
+        ),
+        DataCell(
+          Text(
+            horasExtrasDia,
+            style: TextStyle(
+              fontSize: 11,
+              color: horasExtrasDia != '00:00' ? Colors.green : Colors.grey,
+            ),
+          ),
+        ),
+        DataCell(
+          Text(
+            extra60Dia,
+            style: TextStyle(
+              fontSize: 11,
+              color: extra60Dia != '00:00' ? Colors.orange : Colors.grey,
+            ),
+          ),
+        ),
+        DataCell(
+          Text(
+            extra100Dia,
+            style: TextStyle(
+              fontSize: 11,
+              color: extra100Dia != '00:00' ? Colors.purple : Colors.grey,
+            ),
+          ),
+        ),
+        DataCell(
+          Container(
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Text(
+              dia.localizacao,
+              style: const TextStyle(fontSize: 10),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 🎨 COR DA LINHA
+  WidgetStateProperty<Color?> _getCorLinha(String? evento) {
+    if (evento == 'FALTA') {
+      return WidgetStateProperty.all<Color?>(Colors.red.shade50);
+    } else if (evento == 'FOLGA') {
+      return WidgetStateProperty.all<Color?>(Colors.green.shade50);
+    }
+    return WidgetStateProperty.all<Color?>(null);
+  }
+
+  // 💰 TOTAIS DO RELATÓRIO
+  Widget _buildTotaisRelatorio(RelatorioMensal relatorio) {
+    final corHorasDevidas = relatorio.horasDevidas != '00:00'
+        ? Colors.red
+        : Colors.grey;
+    final corHorasExtras = relatorio.horasExtrasTrabalhadas != '00:00'
+        ? Colors.green
+        : Colors.grey;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -633,18 +756,46 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         children: [
           Row(
             children: [
-              _buildTotalItem('Total Previsto', relatorio.totalPrevisto, Colors.blue),
-              _buildTotalItem('Total Efetivo', relatorio.totalEfetivo, Colors.green),
-              _buildTotalItem('Horas Devidas', relatorio.horasDevidas, corHorasDevidas),
-              _buildTotalItem('Horas Extras', relatorio.horasExtrasTrabalhadas, corHorasExtras),
+              _buildTotalItem(
+                'Total Previsto',
+                relatorio.totalPrevisto,
+                Colors.blue,
+              ),
+              _buildTotalItem(
+                'Total Efetivo',
+                relatorio.totalEfetivo,
+                Colors.green,
+              ),
+              _buildTotalItem(
+                'Horas Devidas',
+                relatorio.horasDevidas,
+                corHorasDevidas,
+              ),
+              _buildTotalItem(
+                'Horas Extras',
+                relatorio.horasExtrasTrabalhadas,
+                corHorasExtras,
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              _buildTotalItem('Extra 60%', relatorio.horasExtras60, Colors.orange),
-              _buildTotalItem('Extra 100%', relatorio.horasExtras100, Colors.purple),
-              _buildTotalItem('Subtotal', relatorio.subtotal, Colors.blue.shade700),
+              _buildTotalItem(
+                'Extra 60%',
+                relatorio.horasExtras60,
+                Colors.orange,
+              ),
+              _buildTotalItem(
+                'Extra 100%',
+                relatorio.horasExtras100,
+                Colors.purple,
+              ),
+              _buildTotalItem(
+                'Subtotal',
+                relatorio.subtotal,
+                Colors.blue.shade700,
+              ),
               _buildTotalItem('Total', relatorio.total, Colors.blue.shade900),
             ],
           ),
@@ -653,6 +804,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  // 🏷️ ITEM DE TOTAL
   Widget _buildTotalItem(String label, String value, Color color) {
     return Expanded(
       child: Container(
@@ -661,10 +813,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           children: [
             Text(
               label,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
             ),
             Text(
               value,
@@ -680,16 +829,76 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
-  // 🔥 EXPORTAR CSV
-  void _exportarCSV() {
+  // ============================================================
+  // 🔥 UTILITÁRIOS
+  // ============================================================
+
+  String _formatarData(DateTime data) {
+    return '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}';
+  }
+
+  Duration _calcularDiferenca(String efetivo, String previsto) {
+    final efetivoDur = _stringToDuration(efetivo);
+    final previstoDur = _stringToDuration(previsto);
+    return efetivoDur - previstoDur;
+  }
+
+  Duration _stringToDuration(String time) {
+    final parts = time.split(':');
+    if (parts.length == 2) {
+      return Duration(
+        hours: int.tryParse(parts[0]) ?? 0,
+        minutes: int.tryParse(parts[1]) ?? 0,
+      );
+    }
+    return Duration.zero;
+  }
+
+  String _durationToString(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
+  }
+
+  // 🔥 EXPORTAR EXCEL
+  void _exportarExcel() async {
     if (_relatorio == null) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('📥 Exportação CSV em desenvolvimento...'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+    try {
+      final bytes = ExcelExportService.gerarExcelRelatorio(_relatorio!);
+      if (bytes == null) {
+        throw Exception('Erro ao gerar Excel');
+      }
+
+      // 🔥 BAIXAR O ARQUIVO (WEB)
+      final blob = html.Blob([
+        bytes,
+      ], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..download =
+            'espelho_ponto_${_relatorio!.funcionarioNome}_${_relatorio!.mes}_${_relatorio!.ano}.xlsx';
+      anchor.click();
+      html.Url.revokeObjectUrl(url);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Excel exportado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro ao exportar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // 🔥 COMPARTILHAR LINK
@@ -699,16 +908,14 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     final nome = _relatorio!.funcionarioNome;
     final mes = _getNomeMes(_relatorio!.mes);
     final ano = _relatorio!.ano;
-
     final funcionarioId = _relatorio!.funcionarioId;
     final mesNum = _relatorio!.mes;
     final anoNum = _relatorio!.ano;
-    
-    // 🔥 LINK LOCAL (USANDO A PORTA ATUAL)
-    final linkLocal = '${Uri.base.origin}/#/relatorios?funcionarioId=$funcionarioId&mes=$mesNum&ano=$anoNum';
-    
-    // 🔥 Substitua pelo link do Firebase Hosting
-    final linkProducao = 'https://app-ponto-ggc.web.app/relatorios?funcionarioId=$funcionarioId&mes=$mesNum&ano=$anoNum';
+
+    final linkLocal =
+        '${Uri.base.origin}/#/relatorios?funcionarioId=$funcionarioId&mes=$mesNum&ano=$anoNum';
+    final linkProducao =
+        'https://app-ponto-ggc.web.app/relatorios?funcionarioId=$funcionarioId&mes=$mesNum&ano=$anoNum';
 
     showDialog(
       context: context,
@@ -720,101 +927,27 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           children: [
             Text(
               'Relatório de $nome - $mes/$ano',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             const Text(
               '📋 Selecione o tipo de link:',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            
-            // 🔥 Opção 1: Link Local
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '🖥️ Desenvolvimento (Local)',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  SelectableText(
-                    linkLocal,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.blue,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '✅ Funciona agora (porta ${Uri.base.port})',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.blue.shade600,
-                    ),
-                  ),
-                ],
-              ),
+            _buildLinkOption(
+              titulo: '🖥️ Desenvolvimento (Local)',
+              link: linkLocal,
+              cor: Colors.blue,
+              detalhe: '✅ Funciona agora (porta ${Uri.base.port})',
             ),
-            
             const SizedBox(height: 12),
-            
-            // 🔥 Opção 2: Link de Produção
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '🚀 Produção (Publicado)',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  SelectableText(
-                    linkProducao,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '✅ Funciona quando o app estiver publicado em produção',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.green.shade600,
-                    ),
-                  ),
-                ],
-              ),
+            _buildLinkOption(
+              titulo: '🚀 Produção (Publicado)',
+              link: linkProducao,
+              cor: Colors.green,
+              detalhe: '✅ Funciona quando o app estiver publicado em produção',
             ),
-            
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(10),
@@ -884,7 +1017,44 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
-  // 🔥 COPIAR LINK PARA ÁREA DE TRANSFERÊNCIA
+  // 🔗 OPÇÃO DE LINK
+  Widget _buildLinkOption({
+    required String titulo,
+    required String link,
+    required Color cor,
+    required String detalhe,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: cor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            titulo,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: cor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          SelectableText(link, style: TextStyle(fontSize: 11, color: cor)),
+          const SizedBox(height: 4),
+          Text(
+            detalhe,
+            style: TextStyle(fontSize: 10, color: cor.withValues(alpha: 0.7)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 📋 COPIAR LINK
   void _copiarLink(String link) async {
     try {
       await Clipboard.setData(ClipboardData(text: link));
@@ -905,17 +1075,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Erro ao copiar: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _mostrarErro('Erro ao copiar', e.toString());
       }
     }
   }
 
-  // 🔥 ABRIR LINK NO NAVEGADOR
+  // 🌐 ABRIR LINK
   void _abrirLink(String link) async {
     try {
       final Uri url = Uri.parse(link);
@@ -926,13 +1091,19 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Erro ao abrir: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _mostrarErro('Erro ao abrir', e.toString());
       }
     }
+  }
+
+  // ❌ MOSTRAR ERRO
+  void _mostrarErro(String titulo, String detalhe) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('❌ $titulo: $detalhe'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 }

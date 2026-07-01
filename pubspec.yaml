@@ -29,7 +29,7 @@ dependencies:
   # 📱 Utilitários Mobile
   local_auth: ^2.1.6
   camera: ^0.10.5
-  connectivity_plus: ^6.1.0  # ← 🔥 ALTERADO!
+  connectivity_plus: ^6.1.0
   shared_preferences: ^2.2.2
   flutter_secure_storage: ^9.0.0
 
@@ -46,6 +46,12 @@ dependencies:
   go_router: ^17.3.0
   provider: ^6.1.5+1
   dio: ^5.9.2
+
+  # 📊 Excel
+  excel: ^4.0.0
+
+  # 🌐 Universal HTML (substitui o dart:html) ⬅️ ⬅️ ⬅️ ADICIONE ESTA LINHA!
+  universal_html: ^2.2.3
 
   # 🌐 Internacionalização
   flutter_localizations:
