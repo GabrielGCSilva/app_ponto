@@ -7,19 +7,12 @@ workflows:
       xcode: latest
       groups:
         - firebase_credentials
-      ios_signing:
-        distribution_type: development  # ou 'ad_hoc' para distribuição
-        bundle_identifier: com.example.appPonto
-        certificate:
-          type: automatic
-        provisioning_profile:
-          type: automatic
     scripts:
       - name: Install dependencies
         script: flutter pub get
       
       - name: Build iOS
-        script: flutter build ios --release  # REMOVA o --no-codesign
+        script: flutter build ios --release
       
       - name: Create IPA
         script: |
