@@ -118,7 +118,7 @@ class PontoProvider extends ChangeNotifier {
       String end;
 
       if (latitude != null && longitude != null && endereco != null) {
-        // 🔥 Usar dados fornecidos pelo Admin (sem o operador '!' desnecessário)
+        // 🔥 Usar dados fornecidos pelo Admin
         lat = latitude;
         lng = longitude;
         end = endereco;

@@ -487,7 +487,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
     }
   }
 
-  // 🔥 MÉTODO _registrarPonto CORRIGIDO
+  // 🔥 MÉTODO _registrarPonto CORRIGIDO (usa a data editada para buscar registros)
   Future<void> _registrarPonto({bool sobrescrever = false}) async {
     final messenger = ScaffoldMessenger.of(context);
     final pontoProvider = context.read<PontoProvider>();
@@ -565,9 +565,10 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         longitude = -46.6333;
       }
 
-      // 🔥 BUSCAR REGISTROS DO DIA
-      final registrosHoje = await pontoProvider.buscarRegistrosDoDia(
+      // 🔥 CORREÇÃO: Buscar registros da DATA EDITADA, não do dia atual
+      final registrosHoje = await pontoProvider.buscarRegistrosDoDiaEspecifico(
         _funcionarioSelecionado!,
+        dataHoraRegistro,  // ← DATA QUE O ADMIN EDITOU
       );
 
       // 🔥 VALIDAR REGRAS
@@ -595,7 +596,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         return;
       }
 
-      // 🔥 CORREÇÃO: Passar data/hora e localização para o provider
+      // 🔥 Registrar ponto com os dados editados
       await pontoProvider.registrarPonto(
         funcionarioId: funcionario.id,
         funcionarioNome: funcionario.nome,

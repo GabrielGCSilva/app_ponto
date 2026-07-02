@@ -1,4 +1,7 @@
+// lib/features/perfil/pages/perfil_page.dart
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; // ← ADICIONE ESTA LINHA
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../funcionario/providers/funcionario_provider.dart';
@@ -118,7 +121,7 @@ class _PerfilPageState extends State<PerfilPage> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Padding(
+      body: SingleChildScrollView(  // ← ADICIONE ESTE WIDGET
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
@@ -216,37 +219,40 @@ class _PerfilPageState extends State<PerfilPage> {
             ),
             const SizedBox(height: 24),
 
-            // 🔥 BOTÃO HISTÓRICO
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const HistoricoPage(),
+            // 🔥 BOTÃO HISTÓRICO - SÓ MOSTRA SE NÃO FOR WEB (DESKTOP)
+            if (!kIsWeb)  // ← ADICIONE ESTA CONDIÇÃO
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const HistoricoPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.history),
+                  label: const Text('Ver Histórico de Pontos'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.history),
-                label: const Text('Ver Histórico de Pontos'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
+            
+            // Espaço entre os botões (só aparece se o histórico for exibido)
+            if (!kIsWeb) const SizedBox(height: 12),
 
             // 🔥 BOTÃO ALTERAR SENHA (CORRIGIDO)
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _alterarSenha,  // ← CHAMA O MÉTODO
+                onPressed: _alterarSenha,
                 icon: const Icon(Icons.lock_outline),
                 label: const Text('Alterar Senha'),
                 style: OutlinedButton.styleFrom(

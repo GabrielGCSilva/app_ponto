@@ -90,8 +90,7 @@ class AppLayout extends StatelessWidget {
                 // 🔥 Fazer logout
                 await FirebaseAuth.instance.signOut();
                 if (context.mounted) {
-                  // 🔥 USAR context.go('/') EM VEZ DE context.go('/login')
-                  context.go('/login'); // ← CORRIGIDO!
+                  context.go('/login');
                 }
               } catch (e) {
                 if (context.mounted) {
