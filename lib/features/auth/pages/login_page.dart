@@ -7,8 +7,6 @@ import 'package:provider/provider.dart';
 import '../../funcionario/providers/funcionario_provider.dart';
 import 'package:app_ponto/core/services/notification_service.dart';
 
-
-
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -24,6 +22,32 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    _verificarLoginExistente(); // 🔥 VERIFICA SE JÁ ESTÁ LOGADO (OFFLINE)
+  }
+
+  // 🔥 VERIFICAR SE JÁ ESTÁ LOGADO (OFFLINE)
+  Future<void> _verificarLoginExistente() async {
+    final authService = AuthService();
+    final isLogged = await authService.isLoggedIn();
+
+    // Se não estiver logado, fica na tela de login
+    if (!isLogged) return;
+
+    if (!mounted) return;
+
+    final usuario = await authService.getUsuarioSalvo();
+    if (!mounted) return;
+
+    final isAdmin = usuario?['isAdmin']?.toString().toLowerCase() == 'true';
+
+    if (mounted) {
+      context.go(isAdmin ? '/dashboard' : '/home');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
@@ -33,10 +57,7 @@ class _LoginPageState extends State<LoginPage> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade50,
-              Colors.white,
-            ],
+            colors: [Colors.blue.shade50, Colors.white],
           ),
         ),
         child: Center(
@@ -65,15 +86,12 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // 🔥 CORRIGIDO: Mobile com SingleChildScrollView
   Widget _buildMobileLogin() {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Card(
         elevation: 8,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: _buildForm(),
@@ -86,32 +104,32 @@ class _LoginPageState extends State<LoginPage> {
     return Form(
       key: _formKey,
       child: Column(
-        mainAxisSize: MainAxisSize.min, // 🔥 ADICIONADO
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Center(
             child: Container(
-              width: 80, // 🔥 REDUZIDO DE 100 PARA 80
-              height: 80, // 🔥 REDUZIDO DE 100 PARA 80
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 color: Colors.blue.shade100,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Icon(
                 Icons.access_time_filled,
-                size: 50, // 🔥 REDUZIDO DE 60 PARA 50
+                size: 50,
                 color: Colors.blue,
               ),
             ),
           ),
-          const SizedBox(height: 16), // 🔥 REDUZIDO DE 24 PARA 16
+          const SizedBox(height: 16),
           Center(
             child: Column(
               children: [
                 const Text(
                   'App Ponto',
                   style: TextStyle(
-                    fontSize: 24, // 🔥 REDUZIDO DE 28 PARA 24
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.blue,
                   ),
@@ -119,15 +137,12 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 2),
                 Text(
                   'Registro de ponto eletrônico',
-                  style: TextStyle(
-                    fontSize: 12, // 🔥 REDUZIDO DE 14 PARA 12
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24), // 🔥 REDUZIDO DE 32 PARA 24
+          const SizedBox(height: 24),
 
           // Email
           TextFormField(
@@ -141,7 +156,10 @@ class _LoginPageState extends State<LoginPage> {
               ),
               filled: true,
               fillColor: Colors.grey.shade50,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // 🔥 ADICIONADO
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
@@ -154,7 +172,7 @@ class _LoginPageState extends State<LoginPage> {
               return null;
             },
           ),
-          const SizedBox(height: 12), // 🔥 REDUZIDO DE 16 PARA 12
+          const SizedBox(height: 12),
 
           // Senha
           TextFormField(
@@ -182,7 +200,10 @@ class _LoginPageState extends State<LoginPage> {
               ),
               filled: true,
               fillColor: Colors.grey.shade50,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // 🔥 ADICIONADO
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
@@ -212,12 +233,12 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          const SizedBox(height: 12), // 🔥 REDUZIDO DE 16 PARA 12
+          const SizedBox(height: 12),
 
           // Botão Entrar
           SizedBox(
             width: double.infinity,
-            height: 48, // 🔥 REDUZIDO DE 56 PARA 48
+            height: 48,
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : ElevatedButton(
@@ -233,13 +254,13 @@ class _LoginPageState extends State<LoginPage> {
                     child: const Text(
                       'Entrar',
                       style: TextStyle(
-                        fontSize: 16, // 🔥 REDUZIDO DE 18 PARA 16
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
           ),
-          const SizedBox(height: 12), // 🔥 REDUZIDO DE 16 PARA 12
+          const SizedBox(height: 12),
 
           Row(
             children: [
@@ -254,15 +275,12 @@ class _LoginPageState extends State<LoginPage> {
               Expanded(child: Divider(color: Colors.grey.shade300)),
             ],
           ),
-          const SizedBox(height: 12), // 🔥 REDUZIDO DE 16 PARA 12
+          const SizedBox(height: 12),
 
           Center(
             child: Text(
               'Versão 1.0.0',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade400,
-              ),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
             ),
           ),
           const SizedBox(height: 8),
@@ -300,10 +318,7 @@ class _LoginPageState extends State<LoginPage> {
             const SizedBox(height: 8),
             Text(
               email,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ],
         ),
@@ -346,139 +361,133 @@ class _LoginPageState extends State<LoginPage> {
 
   // 🔥 MÉTODO DE LOGIN
   Future<void> _fazerLogin() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _loading = true);
+    setState(() => _loading = true);
 
-  final messenger = ScaffoldMessenger.of(context);
-  final router = GoRouter.of(context);
-  final funcionarioProvider = context.read<FuncionarioProvider>();
-  
-  // 🔥 CRIAR INSTÂNCIA DO AUTH SERVICE
-  final authService = AuthService();
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final funcionarioProvider = context.read<FuncionarioProvider>();
 
-  try {
-    // 🔥 USAR AUTH SERVICE EM VEZ DE FIREBASE AUTH DIRETO
-    final user = await authService.login(
-      _emailController.text.trim(),
-      _passwordController.text.trim(),
-    );
+    final authService = AuthService();
 
-    if (user == null) {
-      throw Exception('Falha ao fazer login');
-    }
-    // Vincular token ao usuário
-    await NotificationService().registrarToken();
+    try {
+      final user = await authService.login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
 
-    final userId = user.uid;
-    debugPrint('🔍 UID do usuário: $userId');
-
-    await funcionarioProvider.carregarFuncionarios();
-
-    final funcionario = funcionarioProvider.buscarPorId(userId);
-    debugPrint('🔍 Funcionário encontrado: ${funcionario?.nome}');
-    debugPrint('🔍 isAdmin: ${funcionario?.isAdmin}');
-    debugPrint('🔍 ativo: ${funcionario?.ativo}');
-
-    if (funcionario == null) {
-      await authService.logout(); // 🔥 USAR AUTH SERVICE
-      if (mounted) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('❌ Usuário não encontrado no sistema.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() => _loading = false);
+      if (user == null) {
+        throw Exception('Falha ao fazer login');
       }
-      return;
-    }
 
-    if (!funcionario.ativo) {
-      await authService.logout(); // 🔥 USAR AUTH SERVICE
-      if (mounted) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('❌ Usuário inativo. Contate o administrador.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-        setState(() => _loading = false);
-      }
-      return;
-    }
+      await NotificationService().registrarToken();
 
-    // 🔥 CONTINUA COM O RESTO DO CÓDIGO...
-    final isAdmin = funcionario.isAdmin;
-    final isPrimeiroLogin = funcionario.primeiroLogin;
+      final userId = user.uid;
+      debugPrint('🔍 UID do usuário: $userId');
 
-    debugPrint('🔍 isAdmin final: $isAdmin');
-    debugPrint('🔍 primeiroLogin: $isPrimeiroLogin');
+      await funcionarioProvider.carregarFuncionarios();
 
-    if (mounted) {
-      if (isPrimeiroLogin) {
-        _mostrarDialogRedefinirSenha(
-          context,
-          user,
-          isAdmin,
-          router,
-          messenger,
-        );
-        setState(() => _loading = false);
+      final funcionario = funcionarioProvider.buscarPorId(userId);
+      debugPrint('🔍 Funcionário encontrado: ${funcionario?.nome}');
+      debugPrint('🔍 isAdmin: ${funcionario?.isAdmin}');
+      debugPrint('🔍 ativo: ${funcionario?.ativo}');
+
+      if (funcionario == null) {
+        await authService.logout();
+        if (mounted) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('❌ Usuário não encontrado no sistema.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          setState(() => _loading = false);
+        }
         return;
       }
 
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            '✅ ${isAdmin ? 'Admin' : 'Funcionário'} logado com sucesso!',
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (!funcionario.ativo) {
+        await authService.logout();
+        if (mounted) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('❌ Usuário inativo. Contate o administrador.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          setState(() => _loading = false);
+        }
+        return;
+      }
 
-      if (isAdmin) {
-        debugPrint('🚀 Redirecionando para /dashboard');
-        router.go('/dashboard');
+      final isAdmin = funcionario.isAdmin;
+      final isPrimeiroLogin = funcionario.primeiroLogin;
+
+      debugPrint('🔍 isAdmin final: $isAdmin');
+      debugPrint('🔍 primeiroLogin: $isPrimeiroLogin');
+
+      if (mounted) {
+        if (isPrimeiroLogin) {
+          _mostrarDialogRedefinirSenha(
+            context,
+            user,
+            isAdmin,
+            router,
+            messenger,
+          );
+          setState(() => _loading = false);
+          return;
+        }
+
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ ${isAdmin ? 'Admin' : 'Funcionário'} logado com sucesso!',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        if (isAdmin) {
+          debugPrint('🚀 Redirecionando para /dashboard');
+          router.go('/dashboard');
+        } else {
+          debugPrint('🚀 Redirecionando para /home');
+          router.go('/home');
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      String mensagem = 'Erro ao fazer login: ';
+      if (e.code == 'user-not-found') {
+        mensagem = '❌ Usuário não encontrado.';
+      } else if (e.code == 'wrong-password') {
+        mensagem = '❌ Senha incorreta.';
       } else {
-        debugPrint('🚀 Redirecionando para /home');
-        router.go('/home');
+        mensagem += e.message ?? e.code;
+      }
+
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('❌ Erro: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
       }
     }
-  } on FirebaseAuthException catch (e) {
-    String mensagem = 'Erro ao fazer login: ';
-    if (e.code == 'user-not-found') {
-      mensagem = '❌ Usuário não encontrado.';
-    } else if (e.code == 'wrong-password') {
-      mensagem = '❌ Senha incorreta.';
-    } else {
-      mensagem += e.message ?? e.code;
-    }
-
-    if (mounted) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(mensagem),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } catch (e) {
-    if (mounted) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('❌ Erro: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => _loading = false);
-    }
   }
-}
 
   // 🔥 DIALOG PARA REDEFINIR SENHA NO PRIMEIRO LOGIN
   void _mostrarDialogRedefinirSenha(
@@ -532,7 +541,7 @@ class _LoginPageState extends State<LoginPage> {
           ElevatedButton(
             onPressed: () async {
               final scaffoldMessenger = ScaffoldMessenger.of(context);
-              
+
               final novaSenha = novaSenhaController.text.trim();
               final confirmar = confirmarController.text.trim();
 
