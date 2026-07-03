@@ -1,11 +1,13 @@
 // lib/features/perfil/pages/perfil_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; // ← ADICIONE ESTA LINHA
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart'; 
 import '../../funcionario/providers/funcionario_provider.dart';
 import 'historico_page.dart';
+import '../../funcionario/models/funcionario_model.dart';
+
 
 class PerfilPage extends StatefulWidget {
   const PerfilPage({super.key});
@@ -15,12 +17,58 @@ class PerfilPage extends StatefulWidget {
 }
 
 class _PerfilPageState extends State<PerfilPage> {
-  // 🔥 MÉTODO ALTERAR SENHA (CORRIGIDO)
+  Funcionario? _funcionario;
+  bool _carregando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarDados();
+  }
+
+  // 🔥 CARREGAR DADOS DO USUÁRIO (ONLINE + OFFLINE)
+  Future<void> _carregarDados() async {
+    setState(() => _carregando = true);
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      setState(() {
+        _funcionario = null;
+        _carregando = false;
+      });
+      return;
+    }
+
+    final funcionarioProvider = context.read<FuncionarioProvider>();
+
+    // 🔥 TENTAR BUSCAR ONLINE PRIMEIRO
+    var funcionario = funcionarioProvider.buscarPorId(currentUser.uid);
+
+    // 🔥 SE NÃO ENCONTRAR ONLINE, BUSCAR DO CACHE (OFFLINE)
+    if (funcionario == null) {
+      debugPrint('⚠️ [PERFIL] Funcionário não encontrado online, buscando do cache...');
+      funcionario = await funcionarioProvider.buscarFuncionarioOffline(currentUser.uid);
+      
+      if (funcionario != null) {
+        debugPrint('✅ [PERFIL] Funcionário carregado do cache offline');
+      } else {
+        debugPrint('❌ [PERFIL] Nenhum dado encontrado (online ou offline)');
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _funcionario = funcionario;
+        _carregando = false;
+      });
+    }
+  }
+
+  // 🔥 MÉTODO ALTERAR SENHA
   Future<void> _alterarSenha() async {
     final messenger = ScaffoldMessenger.of(context);
     final currentContext = context;
     
-    // 🔥 Dialog para nova senha
     final novaSenha = await _mostrarDialogNovaSenha(currentContext);
     if (novaSenha == null || novaSenha.isEmpty) return;
     
@@ -110,10 +158,6 @@ class _PerfilPageState extends State<PerfilPage> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final funcionarioProvider = context.watch<FuncionarioProvider>();
-    final funcionario = funcionarioProvider.buscarPorId(currentUser?.uid ?? '');
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Meu Perfil'),
@@ -121,151 +165,152 @@ class _PerfilPageState extends State<PerfilPage> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(  // ← ADICIONE ESTE WIDGET
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // 🔥 AVATAR E NOME
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: Colors.blue.shade100,
-              child: Text(
-                funcionario?.nome.isNotEmpty == true
-                    ? funcionario!.nome[0].toUpperCase()
-                    : '?',
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade800,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              funcionario?.nome ?? 'Usuário',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              funcionario?.email ?? 'Email não disponível',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: (funcionario?.isAdmin ?? false)
-                    ? Colors.blue.shade50
-                    : Colors.green.shade50,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: (funcionario?.isAdmin ?? false)
-                      ? Colors.blue.shade200
-                      : Colors.green.shade200,
-                ),
-              ),
-              child: Text(
-                (funcionario?.isAdmin ?? false) ? 'ADMIN' : 'FUNCIONÁRIO',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: (funcionario?.isAdmin ?? false)
-                      ? Colors.blue.shade700
-                      : Colors.green.shade700,
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // 🔥 CARD DE INFORMAÇÕES
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    _buildInfoRow(
-                      Icons.badge_outlined,
-                      'Matrícula',
-                      funcionario?.matricula ?? 'N/A',
-                    ),
-                    const Divider(),
-                    _buildInfoRow(
-                      Icons.work_outline,
-                      'Cargo',
-                      funcionario?.cargo ?? 'N/A',
-                    ),
-                    const Divider(),
-                    _buildInfoRow(
-                      Icons.business_outlined,
-                      'Empresa',
-                      funcionario?.empresaId ?? 'N/A',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // 🔥 BOTÃO HISTÓRICO - SÓ MOSTRA SE NÃO FOR WEB (DESKTOP)
-            if (!kIsWeb)  // ← ADICIONE ESTA CONDIÇÃO
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const HistoricoPage(),
+      body: _carregando
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // 🔥 AVATAR E NOME
+                  CircleAvatar(
+                    radius: 60,
+                    backgroundColor: Colors.blue.shade100,
+                    child: Text(
+                      _funcionario?.nome.isNotEmpty == true
+                          ? _funcionario!.nome[0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade800,
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.history),
-                  label: const Text('Ver Histórico de Pontos'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _funcionario?.nome ?? 'Usuário',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _funcionario?.email ?? 'Email não disponível',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: (_funcionario?.isAdmin ?? false)
+                          ? Colors.blue.shade50
+                          : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: (_funcionario?.isAdmin ?? false)
+                            ? Colors.blue.shade200
+                            : Colors.green.shade200,
+                      ),
+                    ),
+                    child: Text(
+                      (_funcionario?.isAdmin ?? false) ? 'ADMIN' : 'FUNCIONÁRIO',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: (_funcionario?.isAdmin ?? false)
+                            ? Colors.blue.shade700
+                            : Colors.green.shade700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // 🔥 CARD DE INFORMAÇÕES
+                  Card(
+                    elevation: 2,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          _buildInfoRow(
+                            Icons.badge_outlined,
+                            'Matrícula',
+                            _funcionario?.matricula ?? 'N/A',
+                          ),
+                          const Divider(),
+                          _buildInfoRow(
+                            Icons.work_outline,
+                            'Cargo',
+                            _funcionario?.cargo ?? 'N/A',
+                          ),
+                          const Divider(),
+                          _buildInfoRow(
+                            Icons.business_outlined,
+                            'Empresa',
+                            _funcionario?.empresaId ?? 'N/A',
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            
-            // Espaço entre os botões (só aparece se o histórico for exibido)
-            if (!kIsWeb) const SizedBox(height: 12),
+                  const SizedBox(height: 24),
 
-            // 🔥 BOTÃO ALTERAR SENHA (CORRIGIDO)
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _alterarSenha,
-                icon: const Icon(Icons.lock_outline),
-                label: const Text('Alterar Senha'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  // 🔥 BOTÃO HISTÓRICO - SÓ MOSTRA SE NÃO FOR WEB (DESKTOP)
+                  if (!kIsWeb)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const HistoricoPage(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.history),
+                        label: const Text('Ver Histórico de Pontos'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  
+                  if (!kIsWeb) const SizedBox(height: 12),
+
+                  // 🔥 BOTÃO ALTERAR SENHA
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _alterarSenha,
+                      icon: const Icon(Icons.lock_outline),
+                      label: const Text('Alterar Senha'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 

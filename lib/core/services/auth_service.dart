@@ -104,7 +104,7 @@ class AuthService {
     }
   }
 
-  // 🔥 SALVAR USUÁRIO EM CACHE LOCAL (OFFLINE)
+  // SALVAR USUÁRIO EM CACHE LOCAL (OFFLINE)
   Future<void> _salvarUsuarioCache(String userId) async {
     try {
       final doc = await _firestore.collection('funcionarios').doc(userId).get();
@@ -113,9 +113,14 @@ class AuthService {
         final data = doc.data()!;
         final prefs = await SharedPreferences.getInstance();
 
-        // 🔥 Salvar nome e isAdmin no cache
+        // Salvar nome e isAdmin no cache
         await prefs.setString(_keyUsuarioCache, data['nome'] ?? 'Funcionário');
         await prefs.setBool('usuario_is_admin', data['isAdmin'] ?? false);
+        await prefs.setString('usuario_matricula', data['matricula'] ?? 'N/A');
+        await prefs.setString('usuario_cargo', data['cargo'] ?? 'N/A');
+        await prefs.setString('usuario_empresa', data['empresaId'] ?? 'N/A');
+        await prefs.setString('usuario_email', data['email'] ?? '');
+        await prefs.setString('usuario_nome', data['nome'] ?? 'Funcionário');
 
         debugPrint('✅ [AUTH] Usuário salvo em cache local');
       }

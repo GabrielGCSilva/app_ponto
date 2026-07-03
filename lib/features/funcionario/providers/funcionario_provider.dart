@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 🔥 ADICIONADO
 import '../models/funcionario_model.dart';
 
 class FuncionarioProvider extends ChangeNotifier {
@@ -54,6 +55,48 @@ class FuncionarioProvider extends ChangeNotifier {
     try {
       return _funcionarios.firstWhere((f) => f.id == id);
     } catch (e) {
+      return null;
+    }
+  }
+
+  // 🔥 BUSCAR FUNCIONÁRIO DO CACHE OFFLINE
+  Future<Funcionario?> buscarFuncionarioOffline(String id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      final nome = prefs.getString('usuario_nome');
+      final email = prefs.getString('usuario_email');
+      final matricula = prefs.getString('usuario_matricula');
+      final cargo = prefs.getString('usuario_cargo');
+      final empresaId = prefs.getString('usuario_empresa');
+      final isAdmin = prefs.getBool('usuario_is_admin') ?? false;
+
+      if (nome == null) {
+        debugPrint('⚠️ [OFFLINE] Nenhum dado em cache para o usuário $id');
+        return null;
+      }
+
+      debugPrint('✅ [OFFLINE] Usuário carregado do cache: $nome');
+
+      return Funcionario(
+        id: id,
+        nome: nome,
+        email: email ?? '',
+        matricula: matricula ?? 'N/A',
+        cargo: cargo ?? 'N/A',
+        empresaId: empresaId ?? 'N/A',
+        isAdmin: isAdmin,
+        ativo: true,
+        telefone: '', // Fallback
+        rg: '', // Fallback
+        cpf: '', // Fallback
+        dataNascimento: DateTime.now(), // Fallback
+        dataAdmissao: DateTime.now(), // Fallback
+        fotoPath: null,
+        dataExclusao: null,
+      );
+    } catch (e) {
+      debugPrint('❌ [OFFLINE] Erro ao buscar funcionário do cache: $e');
       return null;
     }
   }

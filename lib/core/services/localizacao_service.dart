@@ -45,7 +45,7 @@ class LocalizacaoService {
     }
   }
 
-  // 🔥 Converter Lat/Long em endereço completo
+  // 🔥 Converter Lat/Long em endereço completo (com FALLBACK)
   Future<String> getEnderecoCompleto(double latitude, double longitude) async {
     try {
       final placemarks = await placemarkFromCoordinates(
@@ -68,20 +68,31 @@ class LocalizacaoService {
         return endereco;
       }
 
-      return 'Localização não encontrada';
+      // 🔥 FALLBACK: retornar coordenadas formatadas
+      debugPrint('⚠️ Nenhum endereço encontrado, retornando coordenadas');
+      return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
+      
     } catch (e) {
       debugPrint('❌ Erro na geocodificação: $e');
-      return '$latitude, $longitude';
+      
+      // 🔥 FALLBACK: retornar coordenadas formatadas
+      return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
     }
   }
 
-  // 🔥 Buscar endereço completo a partir da localização atual
+  // 🔥 Buscar endereço completo a partir da localização atual (com FALLBACK)
   Future<String> getEnderecoAtual() async {
     final location = await getLocalizacaoAtual();
-    if (location == null) return 'Localização indisponível';
+    if (location == null) {
+      // 🔥 FALLBACK: coordenadas padrão (São Paulo)
+      debugPrint('⚠️ Localização indisponível, usando fallback (São Paulo)');
+      return await getEnderecoCompleto(-23.5505, -46.6333);
+    }
 
     if (location.latitude == null || location.longitude == null) {
-      return 'Coordenadas não disponíveis';
+      // 🔥 FALLBACK: coordenadas padrão (São Paulo)
+      debugPrint('⚠️ Coordenadas nulas, usando fallback (São Paulo)');
+      return await getEnderecoCompleto(-23.5505, -46.6333);
     }
 
     return await getEnderecoCompleto(
@@ -90,14 +101,25 @@ class LocalizacaoService {
     );
   }
 
-  // 🔥 Buscar localização com endereço (tudo em um)
+  // 🔥 Buscar localização com endereço (tudo em um, com FALLBACK)
   Future<Map<String, dynamic>?> getLocalizacaoCompleta() async {
     try {
+      // 🔥 TENTAR OBTER LOCALIZAÇÃO REAL
       final location = await getLocalizacaoAtual();
-      if (location == null) return null;
-
-      final lat = location.latitude ?? 0.0;
-      final lng = location.longitude ?? 0.0;
+      
+      double lat;
+      double lng;
+      
+      if (location != null && location.latitude != null && location.longitude != null) {
+        lat = location.latitude!;
+        lng = location.longitude!;
+        debugPrint('📍 Localização real obtida: $lat, $lng');
+      } else {
+        // 🔥 FALLBACK: coordenadas padrão (São Paulo)
+        debugPrint('⚠️ Localização indisponível, usando fallback (São Paulo)');
+        lat = -23.5505;
+        lng = -46.6333;
+      }
 
       final endereco = await getEnderecoCompleto(lat, lng);
 
@@ -108,7 +130,19 @@ class LocalizacaoService {
       };
     } catch (e) {
       debugPrint('❌ Erro ao buscar localização completa: $e');
-      return null;
+      
+      // 🔥 FALLBACK: coordenadas padrão (São Paulo)
+      debugPrint('⚠️ Usando fallback de emergência (São Paulo)');
+      return {
+        'latitude': -23.5505,
+        'longitude': -46.6333,
+        'endereco': 'Localização não disponível - São Paulo',
+      };
     }
+  }
+
+  // 🔥 NOVO: Obter coordenadas formatadas para exibição
+  String getCoordenadasFormatadas(double latitude, double longitude) {
+    return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
   }
 }
