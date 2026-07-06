@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/localizacao_service.dart';
-import '../../../core/services/validacao_ponto_service.dart';
 import '../providers/ponto_provider.dart';
 import '../models/registro_ponto_model.dart';
 import '../../funcionario/providers/funcionario_provider.dart';
@@ -12,8 +11,7 @@ class RegistroPontoAdminPage extends StatefulWidget {
   const RegistroPontoAdminPage({super.key});
 
   @override
-  State<RegistroPontoAdminPage> createState() =>
-      _RegistroPontoAdminPageState();
+  State<RegistroPontoAdminPage> createState() => _RegistroPontoAdminPageState();
 }
 
 class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
@@ -22,7 +20,6 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
   String? _metodoAutenticacao;
   bool _registrando = false;
 
-  // 🔥 CAMPOS MANUAIS
   final TextEditingController _dataController = TextEditingController();
   final TextEditingController _horaController = TextEditingController();
   final TextEditingController _localController = TextEditingController();
@@ -95,7 +92,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
       ),
       body: Row(
         children: [
-          // 🔥 Painel Esquerdo: Formulário
+          // Painel Esquerdo: Formulário
           Expanded(
             flex: 2,
             child: SingleChildScrollView(
@@ -119,7 +116,6 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Funcionário
                       DropdownButtonFormField<String>(
                         decoration: const InputDecoration(
                           labelText: 'Funcionário *',
@@ -143,7 +139,6 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Tipo de Ponto
                       DropdownButtonFormField<TipoPonto>(
                         decoration: const InputDecoration(
                           labelText: 'Tipo de Registro *',
@@ -172,7 +167,6 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Método de Autenticação
                       DropdownButtonFormField<String>(
                         decoration: const InputDecoration(
                           labelText: 'Método de Autenticação *',
@@ -195,7 +189,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // 🔥 SEÇÃO DATA E HORA
+                      // Data e Hora
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -248,7 +242,6 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                                       }
                                     });
                                   },
-                                  tooltip: _usarDataHoraAtual ? 'Usando data/hora atual' : 'Editar manualmente',
                                 ),
                               ],
                             ),
@@ -257,10 +250,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text(
                                   '⚠️ Editando manualmente',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.orange.shade700,
-                                  ),
+                                  style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
                                 ),
                               ),
                           ],
@@ -268,7 +258,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                       ),
                       const SizedBox(height: 12),
 
-                      // 🔥 SEÇÃO LOCALIZAÇÃO
+                      // Local
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -304,14 +294,12 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                                   }
                                 });
                               },
-                              tooltip: _usarLocalizacaoAtual ? 'Usando localização atual' : 'Editar manualmente',
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Botão Registrar
                       SizedBox(
                         width: double.infinity,
                         height: 48,
@@ -330,10 +318,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                                 )
                               : const Icon(Icons.check_circle, size: 20),
                           label: Text(
@@ -349,7 +334,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
             ),
           ),
 
-          // 🔥 Painel Direito: Lista de Registros
+          // Painel Direito: Lista de Registros
           Expanded(
             flex: 3,
             child: Padding(
@@ -362,17 +347,11 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                     children: [
                       const Text(
                         '📋 Últimos Registros',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Text(
                         '${pontoProvider.registros.length} registros',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                        ),
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                       ),
                     ],
                   ),
@@ -387,10 +366,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                                   children: [
                                     Icon(Icons.history, size: 48, color: Colors.grey),
                                     const SizedBox(height: 8),
-                                    Text(
-                                      'Nenhum registro encontrado',
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
+                                    Text('Nenhum registro encontrado', style: TextStyle(color: Colors.grey)),
                                   ],
                                 ),
                               )
@@ -419,11 +395,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         leading: CircleAvatar(
           radius: 16,
           backgroundColor: registro.tipo.color.withValues(alpha: 0.2),
-          child: Icon(
-            registro.tipo.icon,
-            color: registro.tipo.color,
-            size: 16,
-          ),
+          child: Icon(registro.tipo.icon, color: registro.tipo.color, size: 16),
         ),
         title: Text(
           '${registro.funcionarioNome} - ${registro.tipo.label}',
@@ -437,21 +409,14 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              registro.horaFormatada,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              registro.dataFormatada,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-            ),
+            Text(registro.horaFormatada, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            Text(registro.dataFormatada, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
           ],
         ),
       ),
     );
   }
 
-  // 🔥 MÉTODOS PARA SELECIONAR DATA E HORA
   Future<void> _selecionarData() async {
     final hoje = DateTime.now();
     final dataSelecionada = await showDatePicker(
@@ -487,7 +452,6 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
     }
   }
 
-  // 🔥 MÉTODO _registrarPonto CORRIGIDO (usa a data editada para buscar registros)
   Future<void> _registrarPonto({bool sobrescrever = false}) async {
     final messenger = ScaffoldMessenger.of(context);
     final pontoProvider = context.read<PontoProvider>();
@@ -516,7 +480,6 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         throw Exception('Funcionário não encontrado');
       }
 
-      // 🔥 CORREÇÃO: Capturar data/hora editada
       DateTime dataHoraRegistro;
       if (_usarDataHoraAtual) {
         dataHoraRegistro = DateTime.now();
@@ -526,20 +489,17 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
           final horaPartes = _horaController.text.split(':');
           
           dataHoraRegistro = DateTime(
-            int.parse(dataPartes[2]),      // ano
-            int.parse(dataPartes[1]),      // mês
-            int.parse(dataPartes[0]),      // dia
-            int.parse(horaPartes[0]),      // hora
-            int.parse(horaPartes[1]),      // minuto
+            int.parse(dataPartes[2]),
+            int.parse(dataPartes[1]),
+            int.parse(dataPartes[0]),
+            int.parse(horaPartes[0]),
+            int.parse(horaPartes[1]),
           );
-          debugPrint('📝 [ADMIN] Data/Hora editada: $dataHoraRegistro');
         } catch (e) {
-          debugPrint('❌ [ADMIN] Erro ao parsear data/hora: $e');
           dataHoraRegistro = DateTime.now();
         }
       }
 
-      // 🔥 CORREÇÃO: Capturar localização editada
       String endereco;
       double latitude;
       double longitude;
@@ -565,38 +525,6 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         longitude = -46.6333;
       }
 
-      // 🔥 CORREÇÃO: Buscar registros da DATA EDITADA, não do dia atual
-      final registrosHoje = await pontoProvider.buscarRegistrosDoDiaEspecifico(
-        _funcionarioSelecionado!,
-        dataHoraRegistro,  // ← DATA QUE O ADMIN EDITOU
-      );
-
-      // 🔥 VALIDAR REGRAS
-      final validacao = ValidacaoPontoService.validar(
-        tipo: _tipoSelecionado!,
-        registrosHoje: registrosHoje,
-        isAdmin: true,
-        isSobrescrevendo: sobrescrever,
-      );
-
-      if (!validacao.permitido) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(validacao.mensagem),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-        setState(() => _registrando = false);
-        return;
-      }
-
-      if (validacao.precisaConfirmar) {
-        _mostrarDialogSobrescrever();
-        return;
-      }
-
-      // 🔥 Registrar ponto com os dados editados
       await pontoProvider.registrarPonto(
         funcionarioId: funcionario.id,
         funcionarioNome: funcionario.nome,
@@ -625,11 +553,10 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         );
       }
     } catch (e) {
-      debugPrint('❌ [ADMIN] Erro: $e');
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('❌ Erro: $e'),
+            content: Text('❌ Erro: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -639,70 +566,5 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         setState(() => _registrando = false);
       }
     }
-  }
-
-  // 🔥 DIALOG PARA SOBRESCREVER
-  void _mostrarDialogSobrescrever() {
-    debugPrint('🔍 [ADMIN] ===== EXIBINDO DIALOG =====');
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('⚠️ Ponto já registrado hoje'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${_tipoSelecionado!.label} já foi registrado hoje para este funcionário.',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.warning_amber, color: Colors.orange.shade700),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Sobrescrever irá DELETAR o registro anterior.',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              setState(() => _registrando = false);
-            },
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              debugPrint('🔍 [ADMIN] Usuário clicou em SOBRESCREVER');
-              Navigator.pop(dialogContext);
-              _registrarPonto(sobrescrever: true);
-            },
-            icon: const Icon(Icons.refresh),
-            label: const Text('Sobrescrever'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
