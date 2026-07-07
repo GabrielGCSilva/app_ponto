@@ -27,7 +27,14 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
   bool _usarDataHoraAtual = true;
 
   final List<String> _metodos = ['Senha', 'Digital', 'Facial'];
-  final LocalizacaoService _localizacaoService = LocalizacaoService();
+
+  // 🔥 INICIALIZAÇÃO LAZY
+  LocalizacaoService? _localizacaoServiceInstance;
+  LocalizacaoService get localizacaoService {
+    _localizacaoServiceInstance ??= LocalizacaoService();
+    return _localizacaoServiceInstance!;
+  }
+
   final AuthService _authService = AuthService();
 
   @override
@@ -45,7 +52,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
 
   Future<void> _carregarLocalizacaoAtual() async {
     try {
-      final endereco = await _localizacaoService.getEnderecoAtual();
+      final endereco = await localizacaoService.getEnderecoAtual();
       if (mounted) {
         setState(() {
           _localController.text = endereco;
@@ -506,7 +513,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
       
       if (_usarLocalizacaoAtual) {
         try {
-          final localizacao = await _localizacaoService.getLocalizacaoCompleta();
+          final localizacao = await localizacaoService.getLocalizacaoCompleta();
           if (localizacao != null) {
             latitude = localizacao['latitude'] as double;
             longitude = localizacao['longitude'] as double;

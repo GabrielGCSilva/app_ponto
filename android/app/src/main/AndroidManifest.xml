@@ -11,9 +11,12 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
-    <!-- 🔥 PERMISSÃO PARA LOCALIZAÇÃO (GPS) -->
+    <!-- 🔥 PERMISSÃO PARA LOCALIZAÇÃO (GPS) - GEOLOCATOR -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- 🔥 PERMISSÃO PARA GPS EM BACKGROUND (OPCIONAL) -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <application
         android:label="app_ponto"
@@ -36,6 +39,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        
+        <!-- 🔥 CONFIGURAÇÃO PARA O GEOLOCATOR -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="SUA_API_KEY_AQUI" /> <!-- ⚠️ SE USAR GOOGLE MAPS, COLOQUE SUA CHAVE -->
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

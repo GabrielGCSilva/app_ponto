@@ -7,7 +7,13 @@ import '../../../core/services/localizacao_service.dart';
 
 class PontoProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final LocalizacaoService _localizacaoService = LocalizacaoService();
+  
+  // 🔥 INICIALIZAÇÃO LAZY
+  LocalizacaoService? _localizacaoService;
+  LocalizacaoService get localizacaoService {
+    _localizacaoService ??= LocalizacaoService();
+    return _localizacaoService!;
+  }
 
   List<RegistroPonto> _registros = [];
   List<Map<String, dynamic>> _filaPendentes = [];
@@ -244,7 +250,7 @@ class PontoProvider extends ChangeNotifier {
         debugPrint('📍 [PONTO] Localização fornecida: $end');
       } else {
         try {
-          final localizacao = await _localizacaoService.getLocalizacaoCompleta();
+          final localizacao = await localizacaoService.getLocalizacaoCompleta(); // 🔥 USANDO O GETTER
           if (localizacao != null) {
             lat = localizacao['latitude'] as double;
             lng = localizacao['longitude'] as double;

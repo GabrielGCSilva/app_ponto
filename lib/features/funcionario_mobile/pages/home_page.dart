@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:location/location.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/localizacao_service.dart';
 import '../../ponto/models/registro_ponto_model.dart';
@@ -19,10 +20,12 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   late MapController _mapController;
-  LocationData? _localizacaoAtual;
+  Position? _localizacaoAtual;
   bool _carregando = true;
+  bool _carregandoMapa = true;
   String? _enderecoAtual;
   bool _localizacaoDisponivel = false;
+  bool _isOnline = false;
 
   bool _cardExpandido = false;
   late AnimationController _animationController;
@@ -31,20 +34,19 @@ class _HomePageState extends State<HomePage>
   final AuthService _authService = AuthService();
 
   TipoPonto? _tipoSelecionado;
-  // ignore: prefer_final_fields
-  bool _registrando = false; // 🔥 AVISO SUPRIMIDO - muda de valor!
+  bool _registrando = false;
 
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
-    _obterLocalizacao();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
 
     _carregarDadosUsuario();
+    _inicializar();
   }
 
   @override
@@ -53,20 +55,85 @@ class _HomePageState extends State<HomePage>
     super.dispose();
   }
 
+  Future<void> _inicializar() async {
+    // 🔥 VERIFICA INTERNET
+    _isOnline = await _verificarInternet();
+
+    if (_isOnline) {
+      // 🔥 ONLINE: CARREGA MAPA E LOCALIZAÇÃO
+      await _carregarLocalizacao();
+    } else {
+      // 🔥 OFFLINE: MOSTRA TELA SIMPLES
+      setState(() {
+        _carregando = false;
+        _carregandoMapa = false;
+        _localizacaoDisponivel = false;
+        _enderecoAtual = '📍 Modo offline';
+      });
+    }
+  }
+
+  Future<bool> _verificarInternet() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('configuracoes')
+          .doc('check')
+          .get()
+          .timeout(const Duration(seconds: 3));
+      return true;
+    } catch (e) {
+      debugPrint('📡 [HOME] Sem internet: $e');
+      return false;
+    }
+  }
+
+  Future<void> _carregarLocalizacao() async {
+    setState(() => _carregandoMapa = true);
+
+    try {
+      // 🔥 TIMEOUT DE 6 SEGUNDOS
+      await Future.any([
+        _obterLocalizacao(),
+        Future.delayed(const Duration(seconds: 6), () {
+          debugPrint('⚠️ [HOME] Timeout ao obter localização');
+          if (mounted) {
+            setState(() {
+              _localizacaoDisponivel = false;
+              _enderecoAtual = 'Timeout ao obter localização';
+              _carregando = false;
+              _carregandoMapa = false;
+            });
+          }
+        }),
+      ]);
+    } catch (e) {
+      debugPrint('❌ [HOME] Erro ao obter localização: $e');
+      if (mounted) {
+        setState(() {
+          _localizacaoDisponivel = false;
+          _enderecoAtual = 'Erro ao obter localização';
+          _carregando = false;
+          _carregandoMapa = false;
+        });
+      }
+    }
+  }
+
   Future<void> _obterLocalizacao() async {
     setState(() => _carregando = true);
 
     try {
-      final location = await _localizacaoService.getLocalizacaoAtual();
-      if (location != null) {
+      final position = await _localizacaoService.getLocalizacaoAtual();
+      
+      if (position != null) {
         setState(() {
-          _localizacaoAtual = location;
+          _localizacaoAtual = position;
           _localizacaoDisponivel = true;
         });
 
         final endereco = await _localizacaoService.getEnderecoCompleto(
-          location.latitude ?? 0,
-          location.longitude ?? 0,
+          position.latitude,
+          position.longitude,
         );
         setState(() {
           _enderecoAtual = endereco;
@@ -74,17 +141,33 @@ class _HomePageState extends State<HomePage>
       } else {
         setState(() {
           _localizacaoDisponivel = false;
-          _enderecoAtual = 'Localização não disponível (Desktop)';
+          _enderecoAtual = 'Localização não disponível';
         });
       }
     } catch (e) {
       debugPrint('⚠️ Localização não disponível: $e');
       setState(() {
         _localizacaoDisponivel = false;
-        _enderecoAtual = 'Localização não disponível (Desktop)';
+        _enderecoAtual = 'Localização não disponível';
       });
     } finally {
-      setState(() => _carregando = false);
+      setState(() {
+        _carregando = false;
+        _carregandoMapa = false;
+      });
+    }
+  }
+
+  Future<void> _refreshLocalizacao() async {
+    debugPrint('🔄 [HOME] Refresh manual da localização');
+    _isOnline = await _verificarInternet();
+    if (_isOnline) {
+      await _carregarLocalizacao();
+    } else {
+      setState(() {
+        _localizacaoDisponivel = false;
+        _enderecoAtual = '📍 Modo offline';
+      });
     }
   }
 
@@ -105,16 +188,12 @@ class _HomePageState extends State<HomePage>
     });
   }
 
-  // 🔥 CORRIGIDO: Sem aviso de BuildContext
   Future<void> _selecionarTipoPonto(TipoPonto tipo) async {
-    // 🔥 Fechar o card
     _toggleCard();
 
-    // 🔥 Guardar referências ANTES do async
     final messenger = ScaffoldMessenger.of(context);
     final currentContext = context;
 
-    // 🔥 Buscar usuário salvo (async)
     final usuario = await _authService.getUsuarioSalvo();
 
     if (usuario == null) {
@@ -129,7 +208,6 @@ class _HomePageState extends State<HomePage>
       return;
     }
 
-    // 🔥 Navegar para tela de autenticação
     if (currentContext.mounted) {
       Navigator.push(
         currentContext,
@@ -171,15 +249,15 @@ class _HomePageState extends State<HomePage>
       body: Stack(
         children: [
           Positioned.fill(
-            child: _carregando
+            child: _carregando || _carregandoMapa
                 ? const Center(child: CircularProgressIndicator())
-                : _localizacaoDisponivel && _localizacaoAtual != null
+                : _isOnline && _localizacaoDisponivel && _localizacaoAtual != null
                 ? FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
                       initialCenter: LatLng(
-                        _localizacaoAtual!.latitude ?? 0,
-                        _localizacaoAtual!.longitude ?? 0,
+                        _localizacaoAtual!.latitude,
+                        _localizacaoAtual!.longitude,
                       ),
                       initialZoom: 16,
                       interactionOptions: const InteractionOptions(
@@ -198,8 +276,8 @@ class _HomePageState extends State<HomePage>
                             width: 40,
                             height: 40,
                             point: LatLng(
-                              _localizacaoAtual!.latitude ?? 0,
-                              _localizacaoAtual!.longitude ?? 0,
+                              _localizacaoAtual!.latitude,
+                              _localizacaoAtual!.longitude,
                             ),
                             child: Container(
                               decoration: BoxDecoration(
@@ -226,13 +304,15 @@ class _HomePageState extends State<HomePage>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.location_off,
+                          _isOnline ? Icons.location_off : Icons.wifi_off,
                           size: 60,
                           color: Colors.grey.shade400,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Localização indisponível',
+                          _isOnline
+                              ? (_enderecoAtual ?? 'Localização indisponível')
+                              : '📴 Modo offline',
                           style: TextStyle(
                             fontSize: 18,
                             color: Colors.grey.shade600,
@@ -240,17 +320,28 @@ class _HomePageState extends State<HomePage>
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Use o app no celular para GPS',
+                          _isOnline
+                              ? 'Ative o GPS e tente novamente'
+                              : 'Conecte-se à internet para ver o mapa',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey.shade500,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: _refreshLocalizacao,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Tentar novamente'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade700,
+                            foregroundColor: Colors.white,
                           ),
                         ),
                       ],
                     ),
                   ),
           ),
-
           if (_cardExpandido)
             Positioned.fill(
               child: GestureDetector(
@@ -258,7 +349,6 @@ class _HomePageState extends State<HomePage>
                 child: Container(color: Colors.black.withValues(alpha: 0.4)),
               ),
             ),
-
           AnimatedPositioned(
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeOutCubic,
@@ -367,7 +457,6 @@ class _HomePageState extends State<HomePage>
               ),
             ),
           ),
-
           Positioned(
             bottom: 30,
             left: 20,
@@ -396,7 +485,6 @@ class _HomePageState extends State<HomePage>
               ),
             ),
           ),
-
           Positioned(
             top: 16,
             left: 16,
@@ -415,19 +503,26 @@ class _HomePageState extends State<HomePage>
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.location_on, color: Colors.blue, size: 16),
+                  Icon(
+                    _isOnline ? Icons.location_on : Icons.wifi_off,
+                    color: _isOnline ? Colors.blue : Colors.grey,
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _enderecoAtual ?? 'Buscando localização...',
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _isOnline ? Colors.black : Colors.grey,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.refresh, size: 16),
-                    onPressed: _obterLocalizacao,
+                    onPressed: _refreshLocalizacao,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -440,7 +535,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // 🔥 CORRIGIDO: GestureDetector em vez de InkWell
   Widget _buildOpcaoPonto({
     required TipoPonto tipo,
     required IconData icon,
@@ -492,9 +586,7 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // 🔥 MÉTODO DE LOGOUT CORRIGIDO (BuildContext)
   void _confirmarLogout() {
-    // 🔥 Guardar referências ANTES de qualquer async
     final messenger = ScaffoldMessenger.of(context);
     final currentContext = context;
 
@@ -511,18 +603,15 @@ class _HomePageState extends State<HomePage>
           ),
           ElevatedButton(
             onPressed: () async {
-              // 🔥 Fechar dialog ANTES do async
               Navigator.pop(dialogContext);
 
               try {
                 await _authService.logout();
 
-                // 🔥 Usar currentContext (guardado) em vez de context
                 if (currentContext.mounted) {
                   currentContext.go('/login');
                 }
               } catch (e) {
-                // 🔥 Usar messenger (guardado) em vez de ScaffoldMessenger.of(context)
                 if (currentContext.mounted) {
                   messenger.showSnackBar(
                     SnackBar(

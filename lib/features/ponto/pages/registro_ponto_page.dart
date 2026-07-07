@@ -28,7 +28,13 @@ class _RegistroPontoPageState extends State<RegistroPontoPage> {
   bool _usarDataHoraAtual = true;
 
   final List<String> _metodos = ['Senha', 'Digital', 'Facial'];
-  final LocalizacaoService _localizacaoService = LocalizacaoService();
+
+  // 🔥 INICIALIZAÇÃO LAZY
+  LocalizacaoService? _localizacaoServiceInstance;
+  LocalizacaoService get localizacaoService {
+    _localizacaoServiceInstance ??= LocalizacaoService();
+    return _localizacaoServiceInstance!;
+  }
 
   @override
   void initState() {
@@ -45,7 +51,7 @@ class _RegistroPontoPageState extends State<RegistroPontoPage> {
 
   Future<void> _carregarLocalizacaoAtual() async {
     try {
-      final endereco = await _localizacaoService.getEnderecoAtual();
+      final endereco = await localizacaoService.getEnderecoAtual();
       if (mounted) {
         setState(() {
           _localController.text = endereco;
@@ -530,7 +536,7 @@ class _RegistroPontoPageState extends State<RegistroPontoPage> {
       double longitude = 0.0;
 
       if (_usarLocalizacaoAtual) {
-        final loc = await _localizacaoService.getLocalizacaoCompleta();
+        final loc = await localizacaoService.getLocalizacaoCompleta();
         if (loc != null) {
           endereco = loc['endereco'] as String;
           latitude = loc['latitude'] as double;

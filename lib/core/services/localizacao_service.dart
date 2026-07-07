@@ -1,45 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:location/location.dart' as location;
+import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
 class LocalizacaoService {
-  final location.Location _location = location.Location();
-
-  // 🔥 Verificar se o serviço de localização está disponível (com timeout)
+  // 🔥 VERIFICAR SE O GPS ESTÁ ATIVO
   Future<bool> isLocationAvailable() async {
     try {
-      // 🔥 TIMEOUT DE 3 SEGUNDOS PARA NÃO TRAVAR
-      final result = await Future.any([
-        _isLocationAvailableInternal(),
-        Future.delayed(const Duration(seconds: 3), () => false),
-      ]);
-      return result;
+      // 🔥 VERIFICAR SE O SERVIÇO ESTÁ ATIVO
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        debugPrint('⚠️ Serviço de localização desativado');
+        return false;
+      }
+
+      // 🔥 VERIFICAR PERMISSÃO
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          debugPrint('⚠️ Permissão de localização negada');
+          return false;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        debugPrint('⚠️ Permissão de localização negada permanentemente');
+        return false;
+      }
+
+      return true;
     } catch (e) {
       debugPrint('❌ Erro ao verificar localização: $e');
       return false;
     }
   }
 
-  Future<bool> _isLocationAvailableInternal() async {
-    bool serviceEnabled = await _location.serviceEnabled();
-    if (!serviceEnabled) {
-      serviceEnabled = await _location.requestService();
-      if (!serviceEnabled) return false;
-    }
-
-    location.PermissionStatus permissionGranted = await _location.hasPermission();
-    if (permissionGranted == location.PermissionStatus.denied) {
-      permissionGranted = await _location.requestPermission();
-      if (permissionGranted != location.PermissionStatus.granted) return false;
-    }
-
-    return true;
-  }
-
-  // 🔥 Obter localização atual (com timeout)
-  Future<location.LocationData?> getLocalizacaoAtual() async {
-    // 🔥 SE FOR WEB, RETORNA NULL DIRETO
+  // 🔥 OBTER LOCALIZAÇÃO ATUAL (COM TIMEOUT)
+  Future<Position?> getLocalizacaoAtual() async {
     if (kIsWeb) {
       debugPrint('🖥️ [WEB] Localização simulada');
       return null;
@@ -52,32 +50,40 @@ class LocalizacaoService {
         return null;
       }
 
-      // 🔥 TIMEOUT DE 5 SEGUNDOS PARA OBTER LOCALIZAÇÃO
-      final locationData = await Future.any([
-        _location.getLocation(),
-        Future.delayed(const Duration(seconds: 5), () => null),
-      ]);
+      // 🔥 TIMEOUT ESTRITO DE 4 SEGUNDOS
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 4),
+      ).timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout ao obter localização (dispositivo offline)');
+          // ignore: null_argument_to_non_null_type
+          return Future.value(null);
+        },
+      );
 
-      if (locationData != null) {
-        debugPrint('📍 Localização obtida: ${locationData.latitude}, ${locationData.longitude}');
-      } else {
-        debugPrint('⚠️ Timeout ao obter localização');
-      }
-      return locationData;
+        debugPrint('📍 Localização obtida: ${position.latitude}, ${position.longitude}');
+      return position;
     } catch (e) {
       debugPrint('❌ Erro ao obter localização: $e');
       return null;
     }
   }
 
-  // 🔥 Converter Lat/Long em endereço completo (com FALLBACK)
+  // 🔥 CONVERTER LAT/LONG EM ENDEREÇO (com FALLBACK)
   Future<String> getEnderecoCompleto(double latitude, double longitude) async {
     try {
-      // 🔥 TIMEOUT DE 5 SEGUNDOS PARA GEOCODIFICAÇÃO
-      final placemarks = await Future.any([
-        placemarkFromCoordinates(latitude, longitude),
-        Future.delayed(const Duration(seconds: 5), () => <Placemark>[]),
-      ]);
+      final placemarks = await placemarkFromCoordinates(
+        latitude,
+        longitude,
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout na geocodificação');
+          return <Placemark>[];
+        },
+      );
 
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
@@ -96,7 +102,6 @@ class LocalizacaoService {
         }
       }
 
-      // 🔥 FALLBACK: retornar coordenadas formatadas
       debugPrint('⚠️ Nenhum endereço encontrado, retornando coordenadas');
       return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
       
@@ -106,35 +111,28 @@ class LocalizacaoService {
     }
   }
 
-  // 🔥 Buscar endereço completo a partir da localização atual (com FALLBACK)
+  // 🔥 BUSCAR ENDEREÇO ATUAL (com FALLBACK)
   Future<String> getEnderecoAtual() async {
-    // 🔥 SE FOR WEB, RETORNA TEXTO FIXO
     if (kIsWeb) {
       debugPrint('🖥️ [WEB] Usando localização simulada');
       return 'Desktop - Localização simulada';
     }
 
-    final location = await getLocalizacaoAtual();
-    if (location == null) {
+    final position = await getLocalizacaoAtual();
+    if (position == null) {
       debugPrint('⚠️ Localização indisponível, usando fallback (São Paulo)');
       return 'Localização não disponível - São Paulo';
     }
 
-    if (location.latitude == null || location.longitude == null) {
-      debugPrint('⚠️ Coordenadas nulas, usando fallback (São Paulo)');
-      return 'Localização não disponível - São Paulo';
-    }
-
     return await getEnderecoCompleto(
-      location.latitude!,
-      location.longitude!,
+      position.latitude,
+      position.longitude,
     );
   }
 
-  // 🔥 Buscar localização com endereço (tudo em um, com FALLBACK)
+  // 🔥 BUSCAR LOCALIZAÇÃO COMPLETA (com FALLBACK)
   Future<Map<String, dynamic>?> getLocalizacaoCompleta() async {
     try {
-      // 🔥 SE FOR WEB, RETORNA TEXTO FIXO
       if (kIsWeb) {
         debugPrint('🖥️ [WEB] Usando localização simulada');
         return {
@@ -144,34 +142,29 @@ class LocalizacaoService {
         };
       }
 
-      // 🔥 TENTAR OBTER LOCALIZAÇÃO REAL
-      final location = await getLocalizacaoAtual();
+      final position = await getLocalizacaoAtual();
       
-      double lat;
-      double lng;
-      
-      if (location != null && location.latitude != null && location.longitude != null) {
-        lat = location.latitude!;
-        lng = location.longitude!;
-        debugPrint('📍 Localização real obtida: $lat, $lng');
+      if (position != null) {
+        final endereco = await getEnderecoCompleto(
+          position.latitude,
+          position.longitude,
+        );
+        debugPrint('📍 Localização real obtida: ${position.latitude}, ${position.longitude}');
+        return {
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'endereco': endereco,
+        };
       } else {
-        // 🔥 FALLBACK: coordenadas padrão (São Paulo)
         debugPrint('⚠️ Localização indisponível, usando fallback (São Paulo)');
-        lat = -23.5505;
-        lng = -46.6333;
+        return {
+          'latitude': -23.5505,
+          'longitude': -46.6333,
+          'endereco': 'Localização não disponível - São Paulo',
+        };
       }
-
-      final endereco = await getEnderecoCompleto(lat, lng);
-
-      return {
-        'latitude': lat,
-        'longitude': lng,
-        'endereco': endereco,
-      };
     } catch (e) {
       debugPrint('❌ Erro ao buscar localização completa: $e');
-      
-      // 🔥 FALLBACK DE EMERGÊNCIA
       return {
         'latitude': -23.5505,
         'longitude': -46.6333,
@@ -180,7 +173,7 @@ class LocalizacaoService {
     }
   }
 
-  // 🔥 Obter coordenadas formatadas para exibição
+  // 🔥 COORDENADAS FORMATADAS
   String getCoordenadasFormatadas(double latitude, double longitude) {
     return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
   }

@@ -19,7 +19,7 @@ dependencies:
   flutter_local_notifications: ^17.0.0
 
   # 📍 Localização
-  location: ^8.0.1
+  geolocator: ^12.0.0
   geocoding: ^4.0.0
 
   # 🗺️ Mapa Gratuito (OpenStreetMap)
