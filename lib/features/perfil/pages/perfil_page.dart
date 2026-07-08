@@ -3,11 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart'; 
+import 'package:provider/provider.dart';
 import '../../funcionario/providers/funcionario_provider.dart';
-import 'historico_page.dart';
 import '../../funcionario/models/funcionario_model.dart';
-
+import 'historico_page.dart';
 
 class PerfilPage extends StatefulWidget {
   const PerfilPage({super.key});
@@ -26,7 +25,6 @@ class _PerfilPageState extends State<PerfilPage> {
     _carregarDados();
   }
 
-  // 🔥 CARREGAR DADOS DO USUÁRIO (ONLINE + OFFLINE)
   Future<void> _carregarDados() async {
     setState(() => _carregando = true);
 
@@ -41,7 +39,7 @@ class _PerfilPageState extends State<PerfilPage> {
 
     final funcionarioProvider = context.read<FuncionarioProvider>();
 
-    // 🔥 TENTAR BUSCAR ONLINE PRIMEIRO
+    // 🔥 TENTAR BUSCAR ONLINE PRIMEIRO (com timeout)
     var funcionario = funcionarioProvider.buscarPorId(currentUser.uid);
 
     // 🔥 SE NÃO ENCONTRAR ONLINE, BUSCAR DO CACHE (OFFLINE)
@@ -64,7 +62,6 @@ class _PerfilPageState extends State<PerfilPage> {
     }
   }
 
-  // 🔥 MÉTODO ALTERAR SENHA
   Future<void> _alterarSenha() async {
     final messenger = ScaffoldMessenger.of(context);
     final currentContext = context;
@@ -100,7 +97,6 @@ class _PerfilPageState extends State<PerfilPage> {
     }
   }
 
-  // 🔥 DIALOG PARA NOVA SENHA
   Future<String?> _mostrarDialogNovaSenha(BuildContext context) async {
     final controller = TextEditingController();
     final confirmController = TextEditingController();
@@ -171,7 +167,6 @@ class _PerfilPageState extends State<PerfilPage> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // 🔥 AVATAR E NOME
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: Colors.blue.shade100,
@@ -231,8 +226,6 @@ class _PerfilPageState extends State<PerfilPage> {
                     ),
                   ),
                   const SizedBox(height: 32),
-
-                  // 🔥 CARD DE INFORMAÇÕES
                   Card(
                     elevation: 2,
                     shape: RoundedRectangleBorder(
@@ -264,8 +257,6 @@ class _PerfilPageState extends State<PerfilPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // 🔥 BOTÃO HISTÓRICO - SÓ MOSTRA SE NÃO FOR WEB (DESKTOP)
                   if (!kIsWeb)
                     SizedBox(
                       width: double.infinity,
@@ -290,10 +281,7 @@ class _PerfilPageState extends State<PerfilPage> {
                         ),
                       ),
                     ),
-                  
                   if (!kIsWeb) const SizedBox(height: 12),
-
-                  // 🔥 BOTÃO ALTERAR SENHA
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(

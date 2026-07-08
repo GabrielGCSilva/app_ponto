@@ -61,14 +61,14 @@ class _HomePageState extends State<HomePage>
 
     if (_isOnline) {
       // 🔥 ONLINE: CARREGA MAPA E LOCALIZAÇÃO
-      await _carregarLocalizacao();
+      await _obterLocalizacao();
     } else {
-      // 🔥 OFFLINE: MOSTRA TELA SIMPLES
+      // 🔥 OFFLINE: MOSTRA TELA SIMPLES (SEM TENTAR LOCALIZAÇÃO)
       setState(() {
         _carregando = false;
         _carregandoMapa = false;
         _localizacaoDisponivel = false;
-        _enderecoAtual = '📍 Modo offline';
+        _enderecoAtual = '📍 Modo offline - Conecte-se para ver o mapa';
       });
     }
   }
@@ -87,86 +87,60 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  Future<void> _carregarLocalizacao() async {
-    setState(() => _carregandoMapa = true);
-
-    try {
-      // 🔥 TIMEOUT DE 6 SEGUNDOS
-      await Future.any([
-        _obterLocalizacao(),
-        Future.delayed(const Duration(seconds: 6), () {
-          debugPrint('⚠️ [HOME] Timeout ao obter localização');
-          if (mounted) {
-            setState(() {
-              _localizacaoDisponivel = false;
-              _enderecoAtual = 'Timeout ao obter localização';
-              _carregando = false;
-              _carregandoMapa = false;
-            });
-          }
-        }),
-      ]);
-    } catch (e) {
-      debugPrint('❌ [HOME] Erro ao obter localização: $e');
-      if (mounted) {
-        setState(() {
-          _localizacaoDisponivel = false;
-          _enderecoAtual = 'Erro ao obter localização';
-          _carregando = false;
-          _carregandoMapa = false;
-        });
-      }
-    }
-  }
-
+  // 🔥 OBTER LOCALIZAÇÃO (APENAS ONLINE)
   Future<void> _obterLocalizacao() async {
-    setState(() => _carregando = true);
+  setState(() {
+    _carregando = true;
+    _carregandoMapa = true;
+  });
 
-    try {
-      final position = await _localizacaoService.getLocalizacaoAtual();
-      
-      if (position != null) {
-        setState(() {
-          _localizacaoAtual = position;
-          _localizacaoDisponivel = true;
-        });
+  try {
+    final position = await _localizacaoService.getLocalizacaoAtual();
+    
+    if (position != null) {
+      setState(() {
+        _localizacaoAtual = position;
+        _localizacaoDisponivel = true;
+      });
 
-        final endereco = await _localizacaoService.getEnderecoCompleto(
-          position.latitude,
-          position.longitude,
-        );
-        setState(() {
-          _enderecoAtual = endereco;
-        });
-      } else {
-        setState(() {
-          _localizacaoDisponivel = false;
-          _enderecoAtual = 'Localização não disponível';
-        });
-      }
-    } catch (e) {
-      debugPrint('⚠️ Localização não disponível: $e');
+      final endereco = await _localizacaoService.getEnderecoCompleto(
+        position.latitude,
+        position.longitude,
+      );
+      setState(() {
+        _enderecoAtual = endereco;
+      });
+    } else {
       setState(() {
         _localizacaoDisponivel = false;
         _enderecoAtual = 'Localização não disponível';
       });
-    } finally {
-      setState(() {
-        _carregando = false;
-        _carregandoMapa = false;
-      });
     }
+  } catch (e) {
+    debugPrint('⚠️ Localização não disponível: $e');
+    setState(() {
+      _localizacaoDisponivel = false;
+      _enderecoAtual = 'Erro ao obter localização';
+    });
+  } finally {
+    setState(() {
+      _carregando = false;
+      _carregandoMapa = false;
+    });
   }
+}
 
   Future<void> _refreshLocalizacao() async {
     debugPrint('🔄 [HOME] Refresh manual da localização');
     _isOnline = await _verificarInternet();
     if (_isOnline) {
-      await _carregarLocalizacao();
+      await _obterLocalizacao();
     } else {
       setState(() {
         _localizacaoDisponivel = false;
-        _enderecoAtual = '📍 Modo offline';
+        _enderecoAtual = '📍 Modo offline - Conecte-se para ver o mapa';
+        _carregando = false;
+        _carregandoMapa = false;
       });
     }
   }

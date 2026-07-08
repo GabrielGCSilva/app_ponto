@@ -132,24 +132,31 @@ class AuthService {
   // 🔥 BUSCAR USUÁRIO DO CACHE LOCAL (OFFLINE)
   Future<Map<String, String>?> _getUsuarioCache(String id) async {
     final prefs = await SharedPreferences.getInstance();
-    final nome = prefs.getString(_keyUsuarioCache) ?? 'Funcionário';
-    final email = prefs.getString('usuario_email') ?? '';
+    final nome = prefs.getString('usuario_nome');
+    final email = prefs.getString('usuario_email');
     final isAdmin = prefs.getBool('usuario_is_admin') ?? false;
+    final matricula = prefs.getString('usuario_matricula') ?? 'N/A';
+    final cargo = prefs.getString('usuario_cargo') ?? 'N/A';
+    final empresa = prefs.getString('usuario_empresa') ?? 'N/A';
 
-    if (id.isNotEmpty) {
-      debugPrint('✅ [AUTH] Usuário carregado do cache local: $nome');
-      return {
-        'id': id,
-        'email': email,
-        'nome': nome,
-        'isAdmin': isAdmin.toString(), // 🔥 Adicionar isAdmin
-      };
+    if (nome == null || email == null) {
+      debugPrint('⚠️ [AUTH] Cache incompleto para usuário $id');
+      return null;
     }
 
-    debugPrint('❌ [AUTH] Nenhum dado em cache disponível');
-    return null;
+    debugPrint('✅ [AUTH] Usuário carregado do cache local: $nome');
+    return {
+      'id': id,
+      'email': email,
+      'nome': nome,
+      'isAdmin': isAdmin.toString(),
+      'matricula': matricula,
+      'cargo': cargo,
+      'empresa': empresa,
+    };
   }
 
+  // 🔥 GET USUÁRIO SALVO - COM TIMEOUT E CACHE PRIORITÁRIO
   Future<Map<String, String>?> getUsuarioSalvo() async {
     debugPrint('🔍 [AUTH] ===== INICIANDO getUsuarioSalvo =====');
 
@@ -157,30 +164,42 @@ class AuthService {
     final id = prefs.getString('usuario_id');
 
     debugPrint('🔍 [AUTH] ID salvo no SharedPreferences: $id');
-    debugPrint('🔍 [AUTH] Todas as chaves salvas: ${prefs.getKeys()}');
 
     if (id == null) {
       debugPrint('⚠️ [AUTH] Nenhum ID encontrado no SharedPreferences');
       return null;
     }
 
+    // 🔥 1. TENTAR O CACHE PRIMEIRO (mais rápido)
+    final cache = await _getUsuarioCache(id);
+    if (cache != null) {
+      debugPrint('✅ [AUTH] Usuário carregado do cache local (rápido)');
+      return cache;
+    }
+
+    // 🔥 2. SE NÃO TIVER CACHE, TENTAR FIRESTORE COM TIMEOUT
     try {
-      debugPrint('🔍 [AUTH] Buscando documento no Firestore: $id');
-      final doc = await _firestore.collection('funcionarios').doc(id).get();
+      debugPrint('🔍 [AUTH] Buscando documento no Firestore (timeout: 3s): $id');
+      
+      final doc = await _firestore
+          .collection('funcionarios')
+          .doc(id)
+          .get()
+          .timeout(
+            const Duration(seconds: 3),
+            onTimeout: () {
+              debugPrint('⚠️ [AUTH] Timeout ao buscar Firestore');
+              throw Exception('Timeout');
+            },
+          );
 
       if (!doc.exists) {
-        debugPrint('⚠️ [AUTH] Documento NÃO encontrado no Firestore: $id');
-        return _getUsuarioCache(id);
+        debugPrint('⚠️ [AUTH] Documento NÃO encontrado no Firestore');
+        return null;
       }
 
       final data = doc.data()!;
       final ativo = data['ativo'] ?? true;
-
-      debugPrint('🔍 [AUTH] ✅ Documento encontrado!');
-      debugPrint('🔍 [AUTH] Nome: ${data['nome']}');
-      debugPrint('🔍 [AUTH] Email: ${data['email']}');
-      debugPrint('🔍 [AUTH] ativo: $ativo');
-      debugPrint('🔍 [AUTH] isAdmin: ${data['isAdmin']}');
 
       if (!ativo) {
         debugPrint('⚠️ [AUTH] Usuário está INATIVO!');
@@ -188,30 +207,30 @@ class AuthService {
         return null;
       }
 
-      final emailSalvo =
-          prefs.getString('usuario_email') ?? data['email'] ?? '';
-      final nomeSalvo =
-          prefs.getString('usuario_nome') ?? data['nome'] ?? 'Funcionário';
+      debugPrint('🔍 [AUTH] ✅ Documento encontrado!');
+      debugPrint('🔍 [AUTH] Nome: ${data['nome']}');
+      debugPrint('🔍 [AUTH] isAdmin: ${data['isAdmin']}');
 
-          final isAdmin = data['isAdmin'] ?? false;
-
-      debugPrint('🔍 [AUTH] Email salvo: $emailSalvo');
-      debugPrint('🔍 [AUTH] Nome salvo: $nomeSalvo');
-
-      return {'id': id, 'email': emailSalvo, 'nome': nomeSalvo, 'isAdmin': isAdmin.toString()};
+      return {
+        'id': id,
+        'email': data['email'] ?? '',
+        'nome': data['nome'] ?? 'Funcionário',
+        'isAdmin': (data['isAdmin'] ?? false).toString(),
+        'matricula': data['matricula'] ?? 'N/A',
+        'cargo': data['cargo'] ?? 'N/A',
+        'empresa': data['empresaId'] ?? 'N/A',
+      };
+      
     } catch (e) {
-      debugPrint('❌ [AUTH] ERRO ao verificar usuário: $e');
-
-      final emailSalvo = prefs.getString('usuario_email') ?? '';
-      final nomeSalvo = prefs.getString('usuario_nome') ?? 'Funcionário';
-
-      if (emailSalvo.isNotEmpty) {
-        debugPrint(
-          '⚠️ [AUTH] Retornando dados do SharedPreferences (fallback)',
-        );
-        return {'id': id, 'email': emailSalvo, 'nome': nomeSalvo};
+      debugPrint('⚠️ [AUTH] Erro ao buscar no Firestore: $e');
+      
+      // 🔥 3. TENTAR CACHE COMO FALLBACK
+      final fallback = await _getUsuarioCache(id);
+      if (fallback != null) {
+        debugPrint('✅ [AUTH] Usando cache como fallback');
+        return fallback;
       }
-
+      
       debugPrint('❌ [AUTH] Sem dados de fallback, retornando null');
       return null;
     }
@@ -233,8 +252,11 @@ class AuthService {
     await prefs.remove('usuario_email');
     await prefs.remove('usuario_nome');
     await prefs.remove(_keyExpiracaoLogin);
-    await prefs.remove(_keyUsuarioCache); 
+    await prefs.remove(_keyUsuarioCache);
     await prefs.remove('usuario_is_admin');
+    await prefs.remove('usuario_matricula');
+    await prefs.remove('usuario_cargo');
+    await prefs.remove('usuario_empresa');
     debugPrint('🗑️ [AUTH] Dados locais limpos');
   }
 }

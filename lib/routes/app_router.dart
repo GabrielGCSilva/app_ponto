@@ -18,25 +18,31 @@ final authService = AuthService();
 final appRouter = GoRouter(
   initialLocation: '/login',
   redirect: (context, state) async {
-    final isLogged = await authService.isLoggedIn();
-    final isLoginRoute = state.matchedLocation == '/login';
-    
-    debugPrint('🔍 [ROUTER] isLogged: $isLogged, path: ${state.matchedLocation}');
-    
-    if (!isLogged && !isLoginRoute) {
-      debugPrint('🔍 [ROUTER] Redirecionando para /login');
+    try {
+      final isLogged = await authService.isLoggedIn();
+      final isLoginRoute = state.matchedLocation == '/login';
+      
+      debugPrint('🔍 [ROUTER] isLogged: $isLogged, path: ${state.matchedLocation}');
+      
+      if (!isLogged && !isLoginRoute) {
+        debugPrint('🔍 [ROUTER] Redirecionando para /login');
+        return '/login';
+      }
+      
+      if (isLogged && isLoginRoute) {
+        debugPrint('🔍 [ROUTER] Usuário logado, redirecionando...');
+        final usuario = await authService.getUsuarioSalvo();
+        final isAdmin = usuario?['isAdmin']?.toString().toLowerCase() == 'true';
+        debugPrint('🔍 [ROUTER] isAdmin: $isAdmin');
+        return isAdmin ? '/dashboard' : '/home';
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('❌ [ROUTER] Erro no redirect: $e');
+      // 🔥 Se der erro, redireciona para login (segurança)
       return '/login';
     }
-    
-    if (isLogged && isLoginRoute) {
-      debugPrint('🔍 [ROUTER] Usuário logado, redirecionando...');
-      final usuario = await authService.getUsuarioSalvo();
-      final isAdmin = usuario?['isAdmin']?.toString().toLowerCase() == 'true';
-      debugPrint('🔍 [ROUTER] isAdmin: $isAdmin');
-      return isAdmin ? '/dashboard' : '/home';
-    }
-    
-    return null;
   },
   
   routes: [

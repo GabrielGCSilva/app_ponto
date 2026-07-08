@@ -24,24 +24,31 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    _verificarLoginExistente(); // 🔥 VERIFICA SE JÁ ESTÁ LOGADO (OFFLINE)
+    debugPrint("6️⃣ LoginPage initState");
+    _verificarLoginExistente();
   }
 
-  // 🔥 VERIFICAR SE JÁ ESTÁ LOGADO (OFFLINE)
   Future<void> _verificarLoginExistente() async {
+    debugPrint("7️⃣ LoginPage _verificarLoginExistente INICIADO");
     final authService = AuthService();
     final isLogged = await authService.isLoggedIn();
-
-    // Se não estiver logado, fica na tela de login
-    if (!isLogged) return;
-
+    debugPrint("8️⃣ LoginPage isLogged: $isLogged");
+    
+    if (!isLogged) {
+      debugPrint("9️⃣ LoginPage: não logado, fica na tela de login");
+      return;
+    }
+    
     if (!mounted) return;
-
+    
     final usuario = await authService.getUsuarioSalvo();
+    debugPrint("🔟 LoginPage usuario: $usuario");
+    
     if (!mounted) return;
-
+    
     final isAdmin = usuario?['isAdmin']?.toString().toLowerCase() == 'true';
-
+    debugPrint("1️⃣1️⃣ LoginPage isAdmin: $isAdmin");
+    
     if (mounted) {
       context.go(isAdmin ? '/dashboard' : '/home');
     }
@@ -49,6 +56,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("1️⃣2️⃣ LoginPage build INICIADO");
     final isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
@@ -57,7 +65,10 @@ class _LoginPageState extends State<LoginPage> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.blue.shade50, Colors.white],
+            colors: [
+              Colors.blue.shade50,
+              Colors.white,
+            ],
           ),
         ),
         child: Center(
@@ -91,7 +102,9 @@ class _LoginPageState extends State<LoginPage> {
       padding: const EdgeInsets.all(16),
       child: Card(
         elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: _buildForm(),
@@ -137,14 +150,16 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 2),
                 Text(
                   'Registro de ponto eletrônico',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 24),
 
-          // Email
           TextFormField(
             controller: _emailController,
             decoration: InputDecoration(
@@ -156,10 +171,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               filled: true,
               fillColor: Colors.grey.shade50,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
@@ -174,7 +186,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
           const SizedBox(height: 12),
 
-          // Senha
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
@@ -200,10 +211,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               filled: true,
               fillColor: Colors.grey.shade50,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
@@ -217,7 +225,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
           const SizedBox(height: 4),
 
-          // Esqueceu a senha
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
@@ -235,7 +242,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
           const SizedBox(height: 12),
 
-          // Botão Entrar
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -280,7 +286,10 @@ class _LoginPageState extends State<LoginPage> {
           Center(
             child: Text(
               'Versão 1.0.0',
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade400,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -289,7 +298,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // 🔥 MÉTODO DE RECUPERAR SENHA
   void _recuperarSenha() {
     final messenger = ScaffoldMessenger.of(context);
     final email = _emailController.text.trim();
@@ -318,7 +326,10 @@ class _LoginPageState extends State<LoginPage> {
             const SizedBox(height: 8),
             Text(
               email,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
             ),
           ],
         ),
@@ -359,7 +370,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // 🔥 MÉTODO DE LOGIN
   Future<void> _fazerLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -368,7 +378,7 @@ class _LoginPageState extends State<LoginPage> {
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
     final funcionarioProvider = context.read<FuncionarioProvider>();
-
+    
     final authService = AuthService();
 
     try {
@@ -380,7 +390,7 @@ class _LoginPageState extends State<LoginPage> {
       if (user == null) {
         throw Exception('Falha ao fazer login');
       }
-
+      
       await NotificationService().registrarToken();
 
       final userId = user.uid;
@@ -470,7 +480,10 @@ class _LoginPageState extends State<LoginPage> {
 
       if (mounted) {
         messenger.showSnackBar(
-          SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(mensagem),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
@@ -489,7 +502,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // 🔥 DIALOG PARA REDEFINIR SENHA NO PRIMEIRO LOGIN
   void _mostrarDialogRedefinirSenha(
     BuildContext context,
     User user,
@@ -541,7 +553,7 @@ class _LoginPageState extends State<LoginPage> {
           ElevatedButton(
             onPressed: () async {
               final scaffoldMessenger = ScaffoldMessenger.of(context);
-
+              
               final novaSenha = novaSenhaController.text.trim();
               final confirmar = confirmarController.text.trim();
 

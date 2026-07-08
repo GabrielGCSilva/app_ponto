@@ -125,12 +125,27 @@ class PontoProvider extends ChangeNotifier {
     debugPrint('✅ [PONTO] Sincronização concluída! Restam ${_filaPendentes.length} pendentes');
   }
 
+  // 🔥 MÉTODO PARA SINCRONIZAR AO VOLTAR A INTERNET
+  Future<void> sincronizarSeOnline() async {
+    final isOnline = await _verificarInternet();
+    if (isOnline) {
+      await _carregarFilaPendentes();
+      if (_filaPendentes.isNotEmpty) {
+        debugPrint('📡 [PONTO] Sincronizando ${_filaPendentes.length} registros pendentes...');
+        await _sincronizarFila();
+      }
+    }
+  }
+
   Future<void> carregarRegistros({String? funcionarioId}) async {
     _carregando = true;
     _erro = null;
     notifyListeners();
 
     try {
+      // 🔥 TENTAR SINCRONIZAR PRIMEIRO
+      await sincronizarSeOnline();
+      
       await _carregarFilaPendentes();
 
       Query<Map<String, dynamic>> query = _firestore.collection('registros_ponto');
@@ -250,7 +265,7 @@ class PontoProvider extends ChangeNotifier {
         debugPrint('📍 [PONTO] Localização fornecida: $end');
       } else {
         try {
-          final localizacao = await localizacaoService.getLocalizacaoCompleta(); // 🔥 USANDO O GETTER
+          final localizacao = await localizacaoService.getLocalizacaoCompleta();
           if (localizacao != null) {
             lat = localizacao['latitude'] as double;
             lng = localizacao['longitude'] as double;
