@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
@@ -56,6 +57,21 @@ class AppPonto extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     debugPrint("5️⃣ AppPonto build");
+
+    // 🔥 MONITORAR CONECTIVIDADE
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+      final isConnected = results.any((result) => result != ConnectivityResult.none);
+      
+      if (isConnected) {
+        debugPrint('📡 [APP] Internet reconectada! Sincronizando pendentes...');
+        try {
+          final pontoProvider = Provider.of<PontoProvider>(context, listen: false);
+          pontoProvider.sincronizarPendentes();
+        } catch (e) {
+          debugPrint('❌ [APP] Erro ao sincronizar: $e');
+        }
+      }
+    });
 
     return MaterialApp.router(
       title: 'App Ponto',
