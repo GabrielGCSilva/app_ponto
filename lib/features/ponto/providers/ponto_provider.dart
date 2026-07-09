@@ -138,6 +138,97 @@ class PontoProvider extends ChangeNotifier {
     }
   }
 
+  // 🔥 MÉTODO PRIVADO PARA BUSCAR REGISTROS DO PERÍODO (CORRIGIDO)
+  Future<List<RegistroPonto>> _buscarRegistrosDoPeriodo({
+    required String funcionarioId,
+    required DateTime inicio,
+    required DateTime fim,
+  }) async {
+    List<RegistroPonto> registrosFirestore = [];
+
+    try {
+      final snapshot = await _firestore
+          .collection('registros_ponto')
+          .where('funcionarioId', isEqualTo: funcionarioId)
+          .where('dataHora', isGreaterThanOrEqualTo: inicio.toIso8601String())
+          .where('dataHora', isLessThan: fim.toIso8601String())
+          .get()
+          .timeout(const Duration(seconds: 3));
+
+      registrosFirestore = snapshot.docs.map((doc) {
+        return RegistroPonto.fromFirestore(doc.data(), doc.id);
+      }).toList();
+      
+      debugPrint('📡 [PONTO] ${registrosFirestore.length} registros do Firestore/cache');
+
+    } catch (e) {
+      debugPrint('⚠️ [PONTO] Erro ao buscar Firestore: $e');
+    }
+
+    await _carregarFilaPendentes();
+
+    final todosRegistros = <RegistroPonto>[
+      ...registrosFirestore,
+      ..._registros,
+      ..._filaPendentes.map((item) {
+        return RegistroPonto.fromFirestore(
+          item['registro'], 
+          item['registro']['id'] ?? DateTime.now().millisecondsSinceEpoch.toString()
+        );
+      })
+    ];
+
+    // 🔥 REMOVER DUPLICADOS (pelo id) E FILTRAR
+    final registrosHoje = <RegistroPonto>[];
+    final idsVistos = <String>{};
+
+    for (var r in todosRegistros) {
+      if (!idsVistos.contains(r.id)) {
+        idsVistos.add(r.id);
+        final dataRegistro = r.dataHora;
+        // 🔥 CORRIGIDO: inclui registros no início do dia
+        if (r.funcionarioId == funcionarioId &&
+            !dataRegistro.isBefore(inicio) &&
+            dataRegistro.isBefore(fim)) {
+          registrosHoje.add(r);
+        }
+      }
+    }
+
+    debugPrint('📋 [PONTO] ${registrosHoje.length} registros para validação');
+    debugPrint('📋 [PONTO] Tipos: ${registrosHoje.map((r) => r.tipo.label).toList()}');
+
+    return registrosHoje;
+  }
+
+  // 🔥 BUSCAR REGISTROS DO DIA
+  Future<List<RegistroPonto>> buscarRegistrosDoDia(String funcionarioId) async {
+    final hoje = DateTime.now();
+    final inicioDia = DateTime(hoje.year, hoje.month, hoje.day);
+    final fimDia = inicioDia.add(const Duration(days: 1));
+
+    return await _buscarRegistrosDoPeriodo(
+      funcionarioId: funcionarioId,
+      inicio: inicioDia,
+      fim: fimDia,
+    );
+  }
+
+  // 🔥 BUSCAR REGISTROS DO DIA ESPECÍFICO
+  Future<List<RegistroPonto>> buscarRegistrosDoDiaEspecifico(
+    String funcionarioId,
+    DateTime data,
+  ) async {
+    final inicioDia = DateTime(data.year, data.month, data.day);
+    final fimDia = inicioDia.add(const Duration(days: 1));
+
+    return await _buscarRegistrosDoPeriodo(
+      funcionarioId: funcionarioId,
+      inicio: inicioDia,
+      fim: fimDia,
+    );
+  }
+
   Future<void> carregarRegistros({String? funcionarioId}) async {
     _carregando = true;
     _erro = null;
@@ -145,8 +236,6 @@ class PontoProvider extends ChangeNotifier {
 
     try {
       await _carregarFilaPendentes();
-
-      // 🔥 TENTAR SINCRONIZAR PRIMEIRO
       await sincronizarSeOnline();
 
       Query<Map<String, dynamic>> query = _firestore.collection('registros_ponto');
@@ -164,7 +253,6 @@ class PontoProvider extends ChangeNotifier {
         return RegistroPonto.fromFirestore(doc.data(), doc.id);
       }).toList();
 
-      // 🔥 ADICIONAR REGISTROS DA FILA
       if (_filaPendentes.isNotEmpty) {
         for (var item in _filaPendentes) {
           try {
@@ -193,101 +281,7 @@ class PontoProvider extends ChangeNotifier {
     }
   }
 
-  // 🔥 BUSCAR REGISTROS DO DIA - COM FALLBACK OFFLINE E FILA
-  Future<List<RegistroPonto>> buscarRegistrosDoDia(String funcionarioId) async {
-    final hoje = DateTime.now();
-    final inicioDia = DateTime(hoje.year, hoje.month, hoje.day);
-    final fimDia = inicioDia.add(const Duration(days: 1));
-
-    try {
-      // 🔥 TENTAR BUSCAR NO FIRESTORE (online)
-      final snapshot = await _firestore
-          .collection('registros_ponto')
-          .where('funcionarioId', isEqualTo: funcionarioId)
-          .where('dataHora', isGreaterThanOrEqualTo: inicioDia.toIso8601String())
-          .where('dataHora', isLessThan: fimDia.toIso8601String())
-          .get()
-          .timeout(const Duration(seconds: 3));
-
-      return snapshot.docs.map((doc) {
-        return RegistroPonto.fromFirestore(doc.data(), doc.id);
-      }).toList();
-      
-    } catch (e) {
-      // 🔥 OFFLINE: USAR CACHE LOCAL + FILA PENDENTES
-      debugPrint('⚠️ [PONTO] Offline, buscando registros do dia no cache local...');
-      
-      await _carregarFilaPendentes();
-      
-      // 🔥 COMBINAR REGISTROS DO CACHE + FILA
-      final todosRegistros = [
-        ..._registros,
-        ..._filaPendentes.map((item) {
-          return RegistroPonto.fromFirestore(
-            item['registro'], 
-            item['registro']['id'] ?? DateTime.now().millisecondsSinceEpoch.toString()
-          );
-        })
-      ];
-      
-      return todosRegistros.where((r) {
-        final dataRegistro = r.dataHora;
-        return r.funcionarioId == funcionarioId &&
-            dataRegistro.isAfter(inicioDia) &&
-            dataRegistro.isBefore(fimDia);
-      }).toList();
-    }
-  }
-
-  // 🔥 BUSCAR REGISTROS DO DIA ESPECÍFICO - COM FALLBACK OFFLINE E FILA
-  Future<List<RegistroPonto>> buscarRegistrosDoDiaEspecifico(
-    String funcionarioId,
-    DateTime data,
-  ) async {
-    final inicioDia = DateTime(data.year, data.month, data.day);
-    final fimDia = inicioDia.add(const Duration(days: 1));
-
-    try {
-      // 🔥 TENTAR BUSCAR NO FIRESTORE (online)
-      final snapshot = await _firestore
-          .collection('registros_ponto')
-          .where('funcionarioId', isEqualTo: funcionarioId)
-          .where('dataHora', isGreaterThanOrEqualTo: inicioDia.toIso8601String())
-          .where('dataHora', isLessThan: fimDia.toIso8601String())
-          .get()
-          .timeout(const Duration(seconds: 3));
-
-      return snapshot.docs.map((doc) {
-        return RegistroPonto.fromFirestore(doc.data(), doc.id);
-      }).toList();
-      
-    } catch (e) {
-      // 🔥 OFFLINE: USAR CACHE LOCAL + FILA PENDENTES
-      debugPrint('⚠️ [PONTO] Offline, buscando registros do dia específico no cache local...');
-      
-      await _carregarFilaPendentes();
-      
-      // 🔥 COMBINAR REGISTROS DO CACHE + FILA
-      final todosRegistros = [
-        ..._registros,
-        ..._filaPendentes.map((item) {
-          return RegistroPonto.fromFirestore(
-            item['registro'], 
-            item['registro']['id'] ?? DateTime.now().millisecondsSinceEpoch.toString()
-          );
-        })
-      ];
-      
-      return todosRegistros.where((r) {
-        final dataRegistro = r.dataHora;
-        return r.funcionarioId == funcionarioId &&
-            dataRegistro.isAfter(inicioDia) &&
-            dataRegistro.isBefore(fimDia);
-      }).toList();
-    }
-  }
-
-  // 🔥 REGISTRAR PONTO - COM VALIDAÇÃO OFFLINE
+  // 🔥 REGISTRAR PONTO - CORRIGIDO
   Future<void> registrarPonto({
     required String funcionarioId,
     required String funcionarioNome,
@@ -341,7 +335,7 @@ class PontoProvider extends ChangeNotifier {
         }
       }
 
-      // 🔥 BUSCAR REGISTROS DO DIA (COM FALLBACK OFFLINE + FILA)
+      // 🔥 BUSCAR REGISTROS DO DIA
       final inicioDia = DateTime(
         dataHoraRegistro.year,
         dataHoraRegistro.month,
@@ -349,53 +343,14 @@ class PontoProvider extends ChangeNotifier {
       );
       final fimDia = inicioDia.add(const Duration(days: 1));
 
-      List<RegistroPonto> registrosHoje = [];
+      final registrosHoje = await _buscarRegistrosDoPeriodo(
+        funcionarioId: funcionarioId,
+        inicio: inicioDia,
+        fim: fimDia,
+      );
 
-      try {
-        // 🔥 TENTAR BUSCAR NO FIRESTORE (online)
-        final snapshot = await _firestore
-            .collection('registros_ponto')
-            .where('funcionarioId', isEqualTo: funcionarioId)
-            .where('dataHora', isGreaterThanOrEqualTo: inicioDia.toIso8601String())
-            .where('dataHora', isLessThan: fimDia.toIso8601String())
-            .get()
-            .timeout(const Duration(seconds: 3));
-
-        registrosHoje = snapshot.docs.map((doc) {
-          return RegistroPonto.fromFirestore(doc.data(), doc.id);
-        }).toList();
-        
-        debugPrint('📡 [PONTO] ${registrosHoje.length} registros encontrados no Firestore');
-
-      } catch (e) {
-        // 🔥 OFFLINE: USAR CACHE LOCAL + FILA PENDENTES
-        debugPrint('⚠️ [PONTO] Offline, verificando registros no cache local...');
-        
-        await _carregarFilaPendentes();
-        
-        // 🔥 COMBINAR REGISTROS DO CACHE + FILA
-        final todosRegistros = [
-          ..._registros,
-          ..._filaPendentes.map((item) {
-            return RegistroPonto.fromFirestore(
-              item['registro'], 
-              item['registro']['id'] ?? DateTime.now().millisecondsSinceEpoch.toString()
-            );
-          })
-        ];
-        
-        registrosHoje = todosRegistros.where((r) {
-          final dataRegistro = r.dataHora;
-          return r.funcionarioId == funcionarioId &&
-              dataRegistro.isAfter(inicioDia) &&
-              dataRegistro.isBefore(fimDia);
-        }).toList();
-        
-        debugPrint('📴 [PONTO] ${registrosHoje.length} registros encontrados no cache local');
-      }
-
-      // 🔥 VALIDAR REGRAS DE NEGÓCIO (usa o ValidacaoPontoService)
-      final isAdmin = false; // Funcionário normal NÃO pode sobrescrever
+      // 🔥 VALIDAR
+      final isAdmin = false;
       final validacao = ValidacaoPontoService.validar(
         tipo: tipo,
         registrosHoje: registrosHoje,
@@ -444,10 +399,15 @@ class PontoProvider extends ChangeNotifier {
         fotoURL: fotoURL,
       );
 
-      // 🔥 SALVAR LOCALMENTE PRIMEIRO (feedback imediato)
-      _registros.insert(0, registro);
-      notifyListeners();
-      debugPrint('✅ [PONTO] Registro salvo localmente!');
+      // 🔥 SALVAR LOCALMENTE (SEM DUPLICAR)
+      final existeNoCache = _registros.any((r) => r.id == registro.id);
+      if (!existeNoCache) {
+        _registros.insert(0, registro);
+        notifyListeners();
+        debugPrint('✅ [PONTO] Registro salvo no cache local');
+      } else {
+        debugPrint('⚠️ [PONTO] Registro já existe no cache');
+      }
 
       // 🔥 VERIFICAR SE ESTÁ ONLINE
       final isOnline = await _verificarInternet();
@@ -461,7 +421,6 @@ class PontoProvider extends ChangeNotifier {
           await _adicionarNaFila(registro);
         }
       } else {
-        // 🔥 OFFLINE: SALVAR NA FILA
         debugPrint('📴 [PONTO] Offline, salvando na fila para sincronização posterior');
         await _adicionarNaFila(registro);
       }

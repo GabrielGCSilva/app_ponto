@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../funcionario/providers/funcionario_provider.dart';
 import '../../funcionario/models/funcionario_model.dart';
+import '../../../core/services/auth_service.dart'; // 🔥 ADICIONADO
 import 'historico_page.dart';
 
 class PerfilPage extends StatefulWidget {
@@ -28,8 +29,12 @@ class _PerfilPageState extends State<PerfilPage> {
   Future<void> _carregarDados() async {
     setState(() => _carregando = true);
 
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
+    // 🔥 USAR AUTH SERVICE EM VEZ DE FIREBASE AUTH DIRETO
+    final authService = AuthService();
+    final usuario = await authService.getUsuarioSalvo();
+    
+    if (usuario == null) {
+      debugPrint('⚠️ [PERFIL] Nenhum usuário encontrado no cache');
       setState(() {
         _funcionario = null;
         _carregando = false;
@@ -39,13 +44,13 @@ class _PerfilPageState extends State<PerfilPage> {
 
     final funcionarioProvider = context.read<FuncionarioProvider>();
 
-    // 🔥 TENTAR BUSCAR ONLINE PRIMEIRO (com timeout)
-    var funcionario = funcionarioProvider.buscarPorId(currentUser.uid);
+    // 🔥 TENTAR BUSCAR ONLINE PRIMEIRO
+    var funcionario = funcionarioProvider.buscarPorId(usuario['id'] ?? '');
 
     // 🔥 SE NÃO ENCONTRAR ONLINE, BUSCAR DO CACHE (OFFLINE)
     if (funcionario == null) {
       debugPrint('⚠️ [PERFIL] Funcionário não encontrado online, buscando do cache...');
-      funcionario = await funcionarioProvider.buscarFuncionarioOffline(currentUser.uid);
+      funcionario = await funcionarioProvider.buscarFuncionarioOffline(usuario['id'] ?? '');
       
       if (funcionario != null) {
         debugPrint('✅ [PERFIL] Funcionário carregado do cache offline');
