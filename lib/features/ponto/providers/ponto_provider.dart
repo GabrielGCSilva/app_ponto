@@ -45,9 +45,18 @@ class PontoProvider extends ChangeNotifier {
   // 🔥 CARREGAR REGISTROS DO CACHE (SHAREDPREFERENCES)
   Future<void> _carregarRegistrosCache() async {
     try {
+      debugPrint('🔍 [CACHE] === INICIANDO CARREGAMENTO ===');
       final prefs = await SharedPreferences.getInstance();
       final jsonString = prefs.getString(_keyRegistrosCache);
+
+      debugPrint('🔍 [CACHE] Chave: $_keyRegistrosCache');
+      debugPrint('🔍 [CACHE] jsonString é null? ${jsonString == null}');
+
       if (jsonString != null) {
+        debugPrint(
+          '🔍 [CACHE] jsonString (primeiros 200 chars): ${jsonString.substring(0, jsonString.length > 200 ? 200 : jsonString.length)}',
+        );
+
         final List<dynamic> list = List<dynamic>.from(jsonDecode(jsonString));
         _registros = list.map((e) {
           return RegistroPonto.fromFirestore(
@@ -58,6 +67,8 @@ class PontoProvider extends ChangeNotifier {
         debugPrint(
           '📋 [PONTO] Registros carregados do cache: ${_registros.length}',
         );
+      } else {
+        debugPrint('⚠️ [CACHE] NENHUM DADO ENCONTRADO no SharedPreferences');
       }
     } catch (e) {
       debugPrint('❌ [PONTO] Erro ao carregar cache de registros: $e');
@@ -67,13 +78,37 @@ class PontoProvider extends ChangeNotifier {
   // 🔥 SALVAR REGISTROS NO CACHE (SHAREDPREFERENCES)
   Future<void> _salvarRegistrosCache() async {
     try {
+      debugPrint('💾 [CACHE] === INICIANDO SALVAMENTO ===');
+      debugPrint('💾 [CACHE] _registros.length = ${_registros.length}');
+
+      if (_registros.isEmpty) {
+        debugPrint(
+          '⚠️ [CACHE] ATENÇÃO: _registros está vazio! Nada será salvo!',
+        );
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final jsonString = jsonEncode(
         _registros.map((r) => r.toFirestore()).toList(),
       );
+
+      debugPrint('💾 [CACHE] Tamanho do JSON: ${jsonString.length} caracteres');
+      debugPrint(
+        '💾 [CACHE] JSON (primeiros 300 chars): ${jsonString.substring(0, jsonString.length > 300 ? 300 : jsonString.length)}',
+      );
+
       await prefs.setString(_keyRegistrosCache, jsonString);
+
+      // 🔥 VERIFICAR SE SALVOU
+      final saved = prefs.getString(_keyRegistrosCache);
+      debugPrint('💾 [CACHE] Verificação: saved é null? ${saved == null}');
+      debugPrint(
+        '💾 [CACHE] ✅ ${_registros.length} registros salvos com sucesso!',
+      );
     } catch (e) {
-      debugPrint('❌ [PONTO] Erro ao salvar cache de registros: $e');
+      debugPrint('❌ [CACHE] ERRO ao salvar: $e');
+      debugPrint('❌ [CACHE] Stacktrace: ${StackTrace.current}');
     }
   }
 
@@ -283,14 +318,16 @@ class PontoProvider extends ChangeNotifier {
     }
   }
 
-  // 🔥 OBTER LOCALIZAÇÃO (COM TIMEOUT CURTO E COORDENADAS REAIS OFFLINE)
+  // 🔥 OBTER LOCALIZAÇÃO (PRIORIDADE: PARÂMETRO > LOCALIZACAO_SERVICE)
   Future<({double lat, double lng, String endereco, bool pendente})>
   _obterLocalizacao({
     double? latitude,
     double? longitude,
     String? endereco,
   }) async {
+    // 🔥 PRIORIDADE 1: Localização recebida por parâmetro (da Home)
     if (latitude != null && longitude != null && endereco != null) {
+      debugPrint('📍 [PONTO] Usando localização recebida por parâmetro');
       return (
         lat: latitude,
         lng: longitude,
@@ -299,12 +336,10 @@ class PontoProvider extends ChangeNotifier {
       );
     }
 
+    // 🔥 PRIORIDADE 2: Buscar do LocalizacaoService (fallback)
     try {
-      final localizacao = await Future.any([
-        localizacaoService.getLocalizacaoCompleta(),
-        Future.delayed(const Duration(seconds: 3), () => null),
-      ]);
-
+      debugPrint('📍 [PONTO] Buscando localização do service...');
+      final localizacao = await localizacaoService.getLocalizacaoCompleta();
       if (localizacao != null) {
         return (
           lat: localizacao['latitude'] as double,
@@ -314,29 +349,11 @@ class PontoProvider extends ChangeNotifier {
         );
       }
     } catch (e) {
-      debugPrint('⚠️ [PONTO] Erro ao obter localização: $e');
+      debugPrint('⚠️ [PONTO] Erro ao obter localização do service: $e');
     }
 
-    try {
-      final position = await Future.any([
-        localizacaoService.getLocalizacaoAtual(),
-        Future.delayed(const Duration(seconds: 5), () => null),
-      ]);
-
-      if (position != null) {
-        final lat = position.latitude;
-        final lng = position.longitude;
-        final coords = '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
-        debugPrint('📍 [PONTO] Coordenadas reais obtidas (offline): $coords');
-        return (lat: lat, lng: lng, endereco: coords, pendente: true);
-      }
-    } catch (e) {
-      debugPrint('⚠️ [PONTO] Erro ao obter coordenadas do GPS: $e');
-    }
-
-    debugPrint(
-      '⚠️ [PONTO] Nenhuma localização disponível, usando fallback final',
-    );
+    // 🔥 FALLBACK FINAL
+    debugPrint('⚠️ [PONTO] Nenhuma localização disponível, usando fallback');
     return (
       lat: -23.5505,
       lng: -46.6333,
@@ -393,16 +410,28 @@ class PontoProvider extends ChangeNotifier {
       }),
     ];
 
+    debugPrint(
+      '🔍 [PONTO] Total de registros para filtrar: ${todosRegistros.length}',
+    );
+    debugPrint('🔍 [PONTO] FuncionarioId buscado: $funcionarioId');
+    debugPrint('🔍 [PONTO] Início: $inicio');
+    debugPrint('🔍 [PONTO] Fim: $fim');
+
     final registrosHoje = <RegistroPonto>[];
     final idsVistos = <String>{};
+
+    // 🔥 CONVERTER PARA O MESMO FUSO HORÁRIO
+    final inicioLocal = inicio.toLocal();
+    final fimLocal = fim.toLocal();
 
     for (var r in todosRegistros) {
       if (!idsVistos.contains(r.id)) {
         idsVistos.add(r.id);
-        final dataRegistro = r.dataHora;
+        final dataRegistroLocal = r.dataHora.toLocal();
+
         if (r.funcionarioId == funcionarioId &&
-            !dataRegistro.isBefore(inicio) &&
-            dataRegistro.isBefore(fim)) {
+            !dataRegistroLocal.isBefore(inicioLocal) &&
+            dataRegistroLocal.isBefore(fimLocal)) {
           registrosHoje.add(r);
         }
       }
@@ -445,38 +474,85 @@ class PontoProvider extends ChangeNotifier {
   }
 
   // 🔥 CARREGAR REGISTROS - ATUALIZADO COM Source.server
+  // 🔥 CARREGAR REGISTROS - VERSÃO DEFINITIVA
   Future<void> carregarRegistros({String? funcionarioId}) async {
     _carregando = true;
     _erro = null;
     notifyListeners();
 
     try {
+      // 🔥 1. CARREGAR FILA PENDENTES
       await _carregarFilaPendentes();
-      await sincronizarSeOnline();
 
-      Query<Map<String, dynamic>> query = _firestore.collection(
-        'registros_ponto',
-      );
+      // 🔥 2. VERIFICAR INTERNET
+      final isOnline = await _verificarInternet();
 
-      if (funcionarioId != null) {
-        query = query.where('funcionarioId', isEqualTo: funcionarioId);
+      if (isOnline) {
+        debugPrint('📡 [PONTO] Online, sincronizando pendentes...');
+
+        // 🔥 Sincronizar pendentes
+        await sincronizarSeOnline();
+
+        // 🔥 Recarregar fila após sincronização
+        await _carregarFilaPendentes();
+
+        // 🔥 3. BUSCAR DO SERVIDOR
+        Query<Map<String, dynamic>> query = _firestore.collection(
+          'registros_ponto',
+        );
+
+        if (funcionarioId != null) {
+          query = query.where('funcionarioId', isEqualTo: funcionarioId);
+        }
+
+        try {
+          debugPrint('📡 [PONTO] Buscando do servidor...');
+          final snapshot = await query
+              .orderBy('dataHora', descending: true)
+              .limit(100)
+              .get(const GetOptions(source: Source.server))
+              .timeout(const Duration(seconds: 5));
+
+          _registros = snapshot.docs.map((doc) {
+            return RegistroPonto.fromFirestore(doc.data(), doc.id);
+          }).toList();
+          debugPrint('✅ [PONTO] ${_registros.length} registros do servidor');
+        } catch (e) {
+          debugPrint('⚠️ [PONTO] Erro ao buscar servidor: $e');
+
+          // 🔥 FALLBACK: CACHE DO FIRESTORE
+          try {
+            debugPrint('📡 [PONTO] Fallback: buscando do cache Firestore...');
+            final snapshot = await query
+                .orderBy('dataHora', descending: true)
+                .limit(100)
+                .get(const GetOptions(source: Source.cache));
+
+            _registros = snapshot.docs.map((doc) {
+              return RegistroPonto.fromFirestore(doc.data(), doc.id);
+            }).toList();
+            debugPrint(
+              '✅ [PONTO] ${_registros.length} registros do cache Firestore',
+            );
+          } catch (e2) {
+            debugPrint('⚠️ [PONTO] Fallback Firestore falhou: $e2');
+
+            // 🔥 ÚLTIMO FALLBACK: SHAREDPREFERENCES
+            debugPrint('📴 [PONTO] Último fallback: SharedPreferences');
+            await _carregarRegistrosCache();
+          }
+        }
+      } else {
+        // 🔥 4. OFFLINE: CARREGAR DIRETO DO SHAREDPREFERENCES
+        debugPrint('📴 [PONTO] Offline, carregando cache local...');
+        await _carregarRegistrosCache();
       }
 
-      // 🔥 FORÇAR BUSCA NO SERVIDOR (IGNORAR CACHE)
-      final snapshot = await query
-          .orderBy('dataHora', descending: true)
-          .limit(100)
-          .get(const GetOptions(source: Source.server));
-
-      // 🔥 ATUALIZAR _registros COM DADOS DO FIRESTORE
-      _registros = snapshot.docs.map((doc) {
-        return RegistroPonto.fromFirestore(doc.data(), doc.id);
-      }).toList();
-
-      debugPrint('✅ Registros carregados do Firestore: ${_registros.length}');
-
-      // 🔥 ADICIONAR REGISTROS DA FILA (PENDENTES)
+      // 🔥 5. ADICIONAR REGISTROS DA FILA (PENDENTES)
       if (_filaPendentes.isNotEmpty) {
+        debugPrint(
+          '📋 [PONTO] Adicionando ${_filaPendentes.length} registros pendentes...',
+        );
         for (var item in _filaPendentes) {
           try {
             final registro = RegistroPonto.fromFirestore(
@@ -494,8 +570,15 @@ class PontoProvider extends ChangeNotifier {
         debugPrint('✅ ${_filaPendentes.length} registros da fila adicionados');
       }
 
-      // 🔥 SALVAR CACHE PARA USO OFFLINE
-      await _salvarRegistrosCache();
+      // 🔥 6. SALVAR CACHE (SOMENTE SE TIVER DADOS)
+      if (_registros.isNotEmpty) {
+        debugPrint(
+          '💾 [PONTO] Salvando ${_registros.length} registros em cache...',
+        );
+        await _salvarRegistrosCache();
+      } else {
+        debugPrint('⚠️ [PONTO] _registros vazio, cache NÃO será sobrescrito');
+      }
 
       _carregando = false;
       notifyListeners();
@@ -505,10 +588,20 @@ class PontoProvider extends ChangeNotifier {
       _erro = e.toString();
       notifyListeners();
       debugPrint('❌ Erro ao carregar registros: $e');
+
+      // 🔥 FALLBACK DE EMERGÊNCIA: TENTAR SHAREDPREFERENCES
+      await _carregarRegistrosCache();
+      if (_registros.isNotEmpty) {
+        debugPrint(
+          '✅ [PONTO] Fallback de emergência: ${_registros.length} registros do SharedPreferences',
+        );
+        _erro = null;
+        notifyListeners();
+      }
     }
   }
 
-  // 🔥 REGISTRAR PONTO - COM DIÁLOGO DE CONFIRMAÇÃO PARA ADMIN
+  // 🔥 REGISTRAR PONTO
   Future<void> registrarPonto({
     required String funcionarioId,
     required String funcionarioNome,
@@ -521,7 +614,7 @@ class PontoProvider extends ChangeNotifier {
     double? latitude,
     double? longitude,
     bool isAdmin = false,
-    BuildContext? context, // 🔥 NOVO: contexto para exibir o diálogo
+    BuildContext? context,
   }) async {
     try {
       debugPrint('📝 [PONTO] Iniciando registro...');
@@ -562,22 +655,24 @@ class PontoProvider extends ChangeNotifier {
 
       // 🔥 Se for Admin e precisa confirmar, EXIBE DIÁLOGO
       if (isAdmin && validacao.precisaConfirmar && context != null) {
-        debugPrint('📝 [PONTO] Admin detectado, exibindo diálogo de confirmação...');
-        
+        debugPrint(
+          '📝 [PONTO] Admin detectado, exibindo diálogo de confirmação...',
+        );
+
         final confirmar = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) => AlertDialog(
             title: Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange.shade700,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'Atenção!',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -587,10 +682,7 @@ class PontoProvider extends ChangeNotifier {
               children: [
                 Text(
                   '⚠️ Este ponto já foi registrado hoje para este funcionário.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.grey.shade800,
-                  ),
+                  style: TextStyle(fontSize: 15, color: Colors.grey.shade800),
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -639,10 +731,7 @@ class PontoProvider extends ChangeNotifier {
                 const SizedBox(height: 4),
                 Text(
                   '⚠️ O registro antigo será substituído permanentemente.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.red.shade400,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.red.shade400),
                 ),
               ],
             ),
@@ -669,15 +758,13 @@ class PontoProvider extends ChangeNotifier {
           ),
         );
 
-        // 🔥 Se o usuário cancelou, interrompe
         if (confirmar != true) {
           debugPrint('📝 [PONTO] Admin cancelou a sobrescrita');
           throw Exception('Operação cancelada pelo administrador');
         }
 
         debugPrint('📝 [PONTO] Admin confirmou sobrescrita!');
-        
-        // 🔥 Chama novamente com sobrescrever = true (sem exibir novo diálogo)
+
         await registrarPonto(
           funcionarioId: funcionarioId,
           funcionarioNome: funcionarioNome,
@@ -690,7 +777,7 @@ class PontoProvider extends ChangeNotifier {
           latitude: latitude,
           longitude: longitude,
           isAdmin: true,
-          context: null, // 🔥 Passa null para evitar loop infinito
+          context: null,
         );
         return;
       }
@@ -699,7 +786,6 @@ class PontoProvider extends ChangeNotifier {
         throw Exception(validacao.mensagem);
       }
 
-      // 🔥 Se não for Admin ou se já está sobrescrevendo
       if (!sobrescrever) {
         final registrosExistentes = registrosHoje
             .where((r) => r.tipo == tipo)
@@ -709,13 +795,14 @@ class PontoProvider extends ChangeNotifier {
           throw Exception('${tipo.label} já registrado hoje!');
         }
       } else {
-        // 🔥 Admin sobrescrevendo: deleta registros existentes
         final registrosExistentes = registrosHoje
             .where((r) => r.tipo == tipo)
             .toList();
 
         if (registrosExistentes.isNotEmpty) {
-          debugPrint('📝 [PONTO] Registro antigo encontrado, deletando para sobrescrever...');
+          debugPrint(
+            '📝 [PONTO] Registro antigo encontrado, deletando para sobrescrever...',
+          );
           for (var doc in registrosExistentes) {
             try {
               await _firestore
@@ -723,7 +810,7 @@ class PontoProvider extends ChangeNotifier {
                   .doc(doc.id)
                   .delete();
             } catch (e) {
-              debugPrint('⚠️ [PONTO] Erro ao deletar do Firestore: $e (pode estar offline)');
+              debugPrint('⚠️ [PONTO] Erro ao deletar do Firestore: $e');
             }
           }
           debugPrint('✅ [PONTO] Registro antigo deletado com sucesso!');
@@ -746,7 +833,11 @@ class PontoProvider extends ChangeNotifier {
 
       final existeNoCache = _registros.any((r) => r.id == registro.id);
       if (!existeNoCache) {
+        debugPrint('💾 [PONTO] Inserindo registro no _registros...');
         _registros.insert(0, registro);
+        debugPrint(
+          '💾 [PONTO] _registros agora tem ${_registros.length} registros',
+        );
         await _salvarRegistrosCache();
         notifyListeners();
         debugPrint('✅ [PONTO] Registro salvo no cache local');
@@ -761,15 +852,11 @@ class PontoProvider extends ChangeNotifier {
           await _salvarNoFirestore(registro);
           debugPrint('✅ [PONTO] Registro sincronizado com o Firestore!');
         } catch (e) {
-          debugPrint(
-            '⚠️ [PONTO] Erro ao salvar no Firestore: $e (será sincronizado depois)',
-          );
+          debugPrint('⚠️ [PONTO] Erro ao salvar no Firestore: $e');
           await _adicionarNaFila(registro);
         }
       } else {
-        debugPrint(
-          '📴 [PONTO] Offline, salvando na fila para sincronização posterior',
-        );
+        debugPrint('📴 [PONTO] Offline, salvando na fila');
         await _adicionarNaFila(registro);
       }
     } catch (e) {
@@ -781,8 +868,18 @@ class PontoProvider extends ChangeNotifier {
   // 🔥 MÉTODO AUXILIAR PARA FORMATAR DATA
   String _formatarData(DateTime data) {
     final meses = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
     ];
     return '${data.day} de ${meses[data.month - 1]} de ${data.year} às ${data.hour.toString().padLeft(2, '0')}:${data.minute.toString().padLeft(2, '0')}';
   }

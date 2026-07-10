@@ -120,7 +120,7 @@ class _HomePageState extends State<HomePage>
         _atualizarMapa(lastPosition);
       }
 
-      // 🔥 PASSO 3: Stream de posição (mais suave que getCurrentPosition)
+      // 🔥 PASSO 3: Stream de posição
       _escutarStreamPosicao();
 
     } catch (e) {
@@ -136,7 +136,6 @@ class _HomePageState extends State<HomePage>
   // 🔥 ESCUTAR STREAM DE POSIÇÃO (EM TEMPO REAL)
   Future<void> _escutarStreamPosicao() async {
     try {
-      // 🔥 Verificar se o GPS está disponível
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         debugPrint('⚠️ [HOME] GPS desativado');
@@ -148,11 +147,10 @@ class _HomePageState extends State<HomePage>
         return;
       }
 
-      // 🔥 Criar stream com timeout
       final stream = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.medium,
-          distanceFilter: 10, // Atualiza a cada 10 metros
+          distanceFilter: 10,
         ),
       ).timeout(
         const Duration(seconds: 20),
@@ -161,7 +159,6 @@ class _HomePageState extends State<HomePage>
 
       bool primeiraPosicao = true;
 
-      // 🔥 Escutar a stream
       await for (final position in stream) {
         if (!mounted) break;
 
@@ -174,18 +171,15 @@ class _HomePageState extends State<HomePage>
 
         _atualizarMapa(position);
 
-        // 🔥 Buscar endereço (apenas na primeira vez)
         if (_enderecoAtual == null || _enderecoAtual!.contains('Buscando') || _enderecoAtual!.contains('Localização')) {
           _buscarEnderecoEmBackground(position);
         }
 
-        // 🔥 Sair do loop após receber a primeira posição boa
         if (_localizacaoDisponivel && position.accuracy < 100) {
           break;
         }
       }
 
-      // 🔥 Se saiu do loop sem posição, tentar fallback
       if (!_localizacaoDisponivel && mounted) {
         _buscando = false;
         _enderecoAtual = 'Não foi possível obter localização';
@@ -194,8 +188,6 @@ class _HomePageState extends State<HomePage>
 
     } catch (e) {
       debugPrint('⚠️ [HOME] Erro na stream: $e');
-      
-      // 🔥 FALLBACK: tentar getCurrentPosition
       if (mounted) {
         _buscando = false;
         await _buscarPosicaoAtualFallback();
@@ -237,7 +229,6 @@ class _HomePageState extends State<HomePage>
       _localizacaoDisponivel = true;
     });
 
-    // 🔥 Mover o mapa
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _mapController.move(
@@ -320,6 +311,7 @@ class _HomePageState extends State<HomePage>
     });
   }
 
+  // 🔥 SELECIONAR TIPO DE PONTO (PASSANDO LOCALIZAÇÃO)
   Future<void> _selecionarTipoPonto(TipoPonto tipo) async {
     _toggleCard();
 
@@ -348,6 +340,10 @@ class _HomePageState extends State<HomePage>
             tipoPonto: tipo,
             funcionarioId: usuario['id'] ?? '',
             funcionarioNome: usuario['nome'] ?? 'Funcionário',
+            // 🔥 PASSAR LOCALIZAÇÃO DA HOME
+            latitude: _localizacaoAtual?.latitude,
+            longitude: _localizacaoAtual?.longitude,
+            endereco: _enderecoAtual,
           ),
         ),
       );
@@ -380,7 +376,6 @@ class _HomePageState extends State<HomePage>
       ),
       body: Stack(
         children: [
-          // 🔥 MAPA - ÚNICO, NUNCA É DESTRUÍDO
           Positioned.fill(
             child: _permicaoNegada
                 ? Center(
@@ -433,7 +428,7 @@ class _HomePageState extends State<HomePage>
                 : FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
-                      initialCenter: _centroPadrao, // 🔥 FIXO
+                      initialCenter: _centroPadrao,
                       initialZoom: 14,
                       interactionOptions: const InteractionOptions(
                         flags: InteractiveFlag.all,
@@ -445,7 +440,6 @@ class _HomePageState extends State<HomePage>
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.seu.app_ponto',
                       ),
-                      // 🔥 MARCADOR DINÂMICO
                       MarkerLayer(
                         markers: [
                           if (_localizacaoDisponivel && _localizacaoAtual != null)
@@ -498,7 +492,6 @@ class _HomePageState extends State<HomePage>
                     ],
                   ),
           ),
-          // 🔥 OVERLAY DE CARREGAMENTO (LEVE)
           if (_isOnline && !_localizacaoDisponivel && !_permicaoNegada && _buscando)
             Positioned(
               top: 80,

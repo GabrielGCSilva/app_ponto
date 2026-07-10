@@ -34,7 +34,7 @@ class LocalizacaoService {
     }
   }
 
-  // 🔥 OBTER LOCALIZAÇÃO ATUAL (COM TIMEOUT DE 5 SEGUNDOS)
+  // 🔥 OBTER LOCALIZAÇÃO ATUAL (COM LAST KNOWN + TIMEOUT)
   Future<Position?> getLocalizacaoAtual() async {
     if (kIsWeb) {
       debugPrint('🖥️ [WEB] Localização simulada');
@@ -48,14 +48,22 @@ class LocalizacaoService {
         return null;
       }
 
-      // 🔥 TIMEOUT DE 5 SEGUNDOS (mais tempo para o GPS)
+      // 🔥 TENTAR ÚLTIMA POSIÇÃO CONHECIDA (INSTANTÂNEA)
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        debugPrint('📍 [GPS] Última posição conhecida: ${lastKnown.latitude}, ${lastKnown.longitude}');
+        return lastKnown;
+      }
+
+      // 🔥 SE NÃO TIVER, BUSCAR NOVA POSIÇÃO
+      debugPrint('📍 [GPS] Buscando nova posição...');
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.medium,
-        timeLimit: const Duration(seconds: 5),
+        timeLimit: const Duration(seconds: 10),
       );
 
       debugPrint(
-        '📍 Localização obtida: ${position.latitude}, ${position.longitude}',
+        '📍 [GPS] Posição obtida: ${position.latitude}, ${position.longitude}',
       );
       return position;
     } catch (e) {
@@ -69,7 +77,7 @@ class LocalizacaoService {
     try {
       final placemarks = await placemarkFromCoordinates(latitude, longitude)
           .timeout(
-            const Duration(seconds: 5),
+            const Duration(seconds: 8),
             onTimeout: () {
               debugPrint('⚠️ Timeout na geocodificação');
               return <Placemark>[];

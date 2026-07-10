@@ -9,12 +9,19 @@ class MetodoAutenticacaoPage extends StatefulWidget {
   final TipoPonto tipoPonto;
   final String funcionarioId;
   final String funcionarioNome;
+  // 🔥 RECEBER LOCALIZAÇÃO
+  final double? latitude;
+  final double? longitude;
+  final String? endereco;
 
   const MetodoAutenticacaoPage({
     super.key,
     required this.tipoPonto,
     required this.funcionarioId,
     required this.funcionarioNome,
+    this.latitude,
+    this.longitude,
+    this.endereco,
   });
 
   @override
@@ -37,7 +44,6 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
     final metodos = <MetodoAutenticacao>[];
 
     try {
-      // 🔥 FORÇAR A VERIFICAÇÃO DE BIOMETRIA
       final canCheckBiometrics = await _authService.canCheckBiometrics();
       final isDeviceSupported = await _authService.isDeviceSupported();
 
@@ -53,13 +59,11 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
         }
       }
 
-      // 🔥 SEMPRE ADICIONAR A SENHA COMO FALLBACK
       final hasPassword = await _authService.hasDevicePassword();
       if (hasPassword) {
         metodos.add(MetodoAutenticacao.senha);
       }
 
-      // 🔥 SE NENHUM MÉTODO FOI ENCONTRADO, ADICIONAR SENHA POR PADRÃO
       if (metodos.isEmpty) {
         metodos.add(MetodoAutenticacao.senha);
       }
@@ -68,7 +72,6 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
         _metodosDisponiveis = metodos;
       });
     } catch (e) {
-      // 🔥 EM CASO DE ERRO, MOSTRAR PELO MENOS A SENHA
       setState(() {
         _metodosDisponiveis = [MetodoAutenticacao.senha];
         _errorMessage = 'Erro ao verificar métodos disponíveis: $e';
@@ -124,16 +127,15 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
     }
   }
 
+  // 🔥 REGISTRAR PONTO (REPASSANDO LOCALIZAÇÃO)
   Future<void> _registrarPonto(String metodo) async {
     final provider = context.read<PontoProvider>();
 
     try {
-      // 🔥 BUSCAR REGISTROS DO DIA
       final registrosHoje = await provider.buscarRegistrosDoDia(
         widget.funcionarioId,
       );
 
-      // 🔥 VALIDAR REGRAS (Funcionário NUNCA pode sobrescrever)
       final validacao = ValidacaoPontoService.validar(
         tipo: widget.tipoPonto,
         registrosHoje: registrosHoje,
@@ -154,13 +156,17 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
         return;
       }
 
-      // 🔥 Registrar ponto
+      // 🔥 REPASSAR LOCALIZAÇÃO RECEBIDA DA HOME
       await provider.registrarPonto(
         funcionarioId: widget.funcionarioId,
         funcionarioNome: widget.funcionarioNome,
         tipo: widget.tipoPonto,
         metodoAutenticacao: 'Biometria ($metodo)',
         sobrescrever: false,
+        // 🔥 PASSAR LOCALIZAÇÃO
+        latitude: widget.latitude,
+        longitude: widget.longitude,
+        endereco: widget.endereco,
       );
 
       if (mounted) {
@@ -182,12 +188,7 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
   }
 
   void _abrirConfiguracoesBiometria() {
-    // 🔥 CORRIGIDO: Abrir configurações de segurança do dispositivo
     try {
-      // Para Android, abrir configurações de biometria
-      // Import: import 'package:url_launcher/url_launcher.dart';
-      // launchUrl(Uri.parse('android.settings.SECURITY_SETTINGS'));
-      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Configure a biometria nas configurações do seu dispositivo.'),
