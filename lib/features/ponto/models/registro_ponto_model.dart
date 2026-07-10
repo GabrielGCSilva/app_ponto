@@ -42,7 +42,6 @@ extension TipoPontoExtension on TipoPonto {
     }
   }
 
-  // 🔥 Converter de String para Enum
   static TipoPonto fromString(String value) {
     switch (value) {
       case 'entrada':
@@ -72,7 +71,7 @@ class RegistroPonto {
   final String? fotoURL;
   final bool sincronizado;
   final DateTime dataCriacao;
-  final bool enderecoPendente; // 🔥 NOVO
+  final bool enderecoPendente;
 
   RegistroPonto({
     required this.id,
@@ -87,15 +86,15 @@ class RegistroPonto {
     this.fotoURL,
     this.sincronizado = true,
     DateTime? dataCriacao,
-    this.enderecoPendente = false, // 🔥 NOVO
+    this.enderecoPendente = false,
   }) : dataCriacao = dataCriacao ?? DateTime.now();
 
-  // 🔥 Converter para Map (Firestore)
   Map<String, dynamic> toFirestore() {
     return {
       'funcionarioId': funcionarioId,
       'funcionarioNome': funcionarioNome,
-      'dataHora': dataHora.toIso8601String(),
+      // 🔥 SALVAR EM UTC
+      'dataHora': dataHora.toUtc().toIso8601String(),
       'tipo': tipo.name,
       'latitude': latitude,
       'longitude': longitude,
@@ -103,36 +102,34 @@ class RegistroPonto {
       'metodoAutenticacao': metodoAutenticacao,
       'fotoURL': fotoURL,
       'sincronizado': sincronizado,
-      'dataCriacao': dataCriacao.toIso8601String(),
-      'enderecoPendente': enderecoPendente, // 🔥 NOVO
+      'dataCriacao': dataCriacao.toUtc().toIso8601String(),
+      'enderecoPendente': enderecoPendente,
     };
   }
 
-  // 🔥 Criar a partir do Map (Firestore)
   factory RegistroPonto.fromFirestore(Map<String, dynamic> data, String id) {
     return RegistroPonto(
       id: id,
       funcionarioId: data['funcionarioId'] ?? '',
       funcionarioNome: data['funcionarioNome'] ?? '',
-      dataHora: DateTime.parse(data['dataHora']),
+      // 🔥 CONVERTER PARA LOCAL
+      dataHora: DateTime.parse(data['dataHora']).toLocal(),
       tipo: TipoPontoExtension.fromString(data['tipo'] ?? 'entrada'),
-      latitude: data['latitude'] ?? 0.0,
-      longitude: data['longitude'] ?? 0.0,
+      latitude: (data['latitude'] ?? 0.0).toDouble(),
+      longitude: (data['longitude'] ?? 0.0).toDouble(),
       endereco: data['endereco'] ?? 'Local não identificado',
       metodoAutenticacao: data['metodoAutenticacao'] ?? 'senha',
       fotoURL: data['fotoURL'],
       sincronizado: data['sincronizado'] ?? true,
-      dataCriacao: DateTime.parse(data['dataCriacao']),
-      enderecoPendente: data['enderecoPendente'] ?? false, // 🔥 NOVO
+      dataCriacao: DateTime.parse(data['dataCriacao']).toLocal(),
+      enderecoPendente: data['enderecoPendente'] ?? false,
     );
   }
 
-  // 🔥 Formatar hora para exibição
   String get horaFormatada {
     return '${dataHora.hour.toString().padLeft(2, '0')}:${dataHora.minute.toString().padLeft(2, '0')}';
   }
 
-  // 🔥 Formatar data para exibição
   String get dataFormatada {
     return '${dataHora.day.toString().padLeft(2, '0')}/'
         '${dataHora.month.toString().padLeft(2, '0')}/'

@@ -22,6 +22,9 @@ class PontoProvider extends ChangeNotifier {
   bool _carregando = false;
   String? _erro;
 
+  // 🔥 FLAG PARA EVITAR SINCRONIZAÇÃO CONCORRENTE
+  bool _sincronizando = false;
+
   List<RegistroPonto> get registros => _registros;
   bool get carregando => _carregando;
   String? get erro => _erro;
@@ -40,6 +43,9 @@ class PontoProvider extends ChangeNotifier {
     await _carregarRegistrosCache();
     await _verificarInternet();
     _monitorarInternet();
+
+    // 🔥 CHAMAR carregarRegistros() PARA CRIAR O CACHE!
+    await carregarRegistros();
   }
 
   // 🔥 CARREGAR REGISTROS DO CACHE (SHAREDPREFERENCES)
@@ -59,14 +65,17 @@ class PontoProvider extends ChangeNotifier {
 
         final List<dynamic> list = List<dynamic>.from(jsonDecode(jsonString));
         _registros = list.map((e) {
-          return RegistroPonto.fromFirestore(
-            e as Map<String, dynamic>,
-            e['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
-          );
+          final data = e as Map<String, dynamic>;
+          // 🔥 USAR O ID SALVO NO CACHE
+          final id = data['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+          return RegistroPonto.fromFirestore(data, id);
         }).toList();
         debugPrint(
           '📋 [PONTO] Registros carregados do cache: ${_registros.length}',
         );
+        
+        // 🔥 LOG DOS IDs PARA DEBUG
+        debugPrint('🔍 [CACHE] IDs carregados: ${_registros.map((r) => r.id).toList()}');
       } else {
         debugPrint('⚠️ [CACHE] NENHUM DADO ENCONTRADO no SharedPreferences');
       }
@@ -89,8 +98,14 @@ class PontoProvider extends ChangeNotifier {
       }
 
       final prefs = await SharedPreferences.getInstance();
+      // 🔥 SALVAR COM ID INCLUÍDO
       final jsonString = jsonEncode(
-        _registros.map((r) => r.toFirestore()).toList(),
+        _registros.map((r) {
+          return {
+            'id': r.id,
+            ...r.toFirestore(),
+          };
+        }).toList(),
       );
 
       debugPrint('💾 [CACHE] Tamanho do JSON: ${jsonString.length} caracteres');
@@ -109,6 +124,31 @@ class PontoProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('❌ [CACHE] ERRO ao salvar: $e');
       debugPrint('❌ [CACHE] Stacktrace: ${StackTrace.current}');
+    }
+  }
+
+  // 🔥 SALVAR CACHE FORÇADO (SOLUÇÃO DEFINITIVA)
+  Future<void> salvarCacheAgora() async {
+    try {
+      if (_registros.isEmpty) {
+        debugPrint('⚠️ [CACHE] _registros vazio, nada para salvar');
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      // 🔥 SALVAR COM ID INCLUÍDO
+      final jsonString = jsonEncode(
+        _registros.map((r) {
+          return {
+            'id': r.id,
+            ...r.toFirestore(),
+          };
+        }).toList(),
+      );
+      await prefs.setString(_keyRegistrosCache, jsonString);
+      debugPrint('✅ [CACHE] ${_registros.length} registros SALVOS COM SUCESSO!');
+    } catch (e) {
+      debugPrint('❌ [CACHE] Erro crítico ao salvar: $e');
     }
   }
 
@@ -255,7 +295,7 @@ class PontoProvider extends ChangeNotifier {
     debugPrint('✅ [PONTO] Conversão de endereços concluída!');
   }
 
-  // 🔥 SINCRONIZAR FILA COM O FIRESTORE
+  // 🔥 SINCRONIZAR FILA COM O FIRESTORE (COM VERIFICAÇÃO DE DUPLICATA)
   Future<void> _sincronizarFila() async {
     await _carregarFilaPendentes();
 
@@ -264,18 +304,27 @@ class PontoProvider extends ChangeNotifier {
       return;
     }
 
-    debugPrint(
-      '🔄 [PONTO] Sincronizando ${_filaPendentes.length} registros...',
-    );
+    debugPrint('🔄 [PONTO] Sincronizando ${_filaPendentes.length} registros...');
 
+    // 🔥 FAZER UMA CÓPIA DA FILA PARA ITERAR
+    final filaCopia = List<Map<String, dynamic>>.from(_filaPendentes);
     final List<Map<String, dynamic>> sincronizados = [];
 
-    for (var item in _filaPendentes) {
+    for (var item in filaCopia) {
       try {
         final registroData = item['registro'];
         final id =
             registroData['id'] ??
             DateTime.now().millisecondsSinceEpoch.toString();
+
+        // 🔥 VERIFICAR SE O REGISTRO JÁ EXISTE NO FIRESTORE
+        final doc = await _firestore.collection('registros_ponto').doc(id).get();
+        
+        if (doc.exists) {
+          debugPrint('⚠️ [PONTO] Registro $id já existe no Firestore, ignorando...');
+          sincronizados.add(item);
+          continue;
+        }
 
         await _firestore
             .collection('registros_ponto')
@@ -289,11 +338,13 @@ class PontoProvider extends ChangeNotifier {
       }
     }
 
-    // 🔥 REMOVER APENAS OS ITENS SINCRONIZADOS (COMPARAÇÃO CORRETA)
+    // 🔥 REMOVER APENAS OS ITENS SINCRONIZADOS
+    final idsSincronizados = sincronizados
+        .map((s) => s['registro']['id'])
+        .toSet();
+
     _filaPendentes.removeWhere(
-      (item) => sincronizados.any(
-        (s) => s['registro']['id'] == item['registro']['id'],
-      ),
+      (item) => idsSincronizados.contains(item['registro']['id']),
     );
 
     await _salvarFilaPendentes();
@@ -303,18 +354,34 @@ class PontoProvider extends ChangeNotifier {
     );
   }
 
-  // 🔥 MÉTODO PARA SINCRONIZAR AO VOLTAR A INTERNET
+  // 🔥 MÉTODO PARA SINCRONIZAR AO VOLTAR A INTERNET (COM BLOQUEIO)
   Future<void> sincronizarSeOnline() async {
+    // 🔥 EVITAR SINCRONIZAÇÃO CONCORRENTE
+    if (_sincronizando) {
+      debugPrint('⚠️ [PONTO] Sincronização já em andamento, ignorando...');
+      return;
+    }
+
     final isOnline = await _verificarInternet();
     if (isOnline) {
-      await _carregarFilaPendentes();
-      if (_filaPendentes.isNotEmpty) {
-        debugPrint(
-          '📡 [PONTO] Sincronizando ${_filaPendentes.length} registros pendentes...',
-        );
-        await _sincronizarFila();
+      _sincronizando = true;
+      debugPrint('🔒 [PONTO] Iniciando sincronização online...');
+      
+      try {
+        await _carregarFilaPendentes();
+        if (_filaPendentes.isNotEmpty) {
+          debugPrint(
+            '📡 [PONTO] Sincronizando ${_filaPendentes.length} registros pendentes...',
+          );
+          await _sincronizarFila();
+        }
+        await sincronizarEnderecosPendentes();
+      } catch (e) {
+        debugPrint('❌ [PONTO] Erro na sincronização online: $e');
+      } finally {
+        _sincronizando = false;
+        debugPrint('🔓 [PONTO] Sincronização online finalizada');
       }
-      await sincronizarEnderecosPendentes();
     }
   }
 
@@ -410,6 +477,16 @@ class PontoProvider extends ChangeNotifier {
       }),
     ];
 
+    // 🔥 LOG PARA DEBUG - ANTES DO FILTRO
+    debugPrint('🔍 [DEBUG] Registros antes do filtro:');
+    for (var r in todosRegistros) {
+      if (r.funcionarioId == funcionarioId) {
+        debugPrint(
+          '  📌 ${r.tipo.label} | ID: ${r.id} | original: ${r.dataHora} | local: ${r.dataHora.toLocal()}'
+        );
+      }
+    }
+
     debugPrint(
       '🔍 [PONTO] Total de registros para filtrar: ${todosRegistros.length}',
     );
@@ -473,30 +550,25 @@ class PontoProvider extends ChangeNotifier {
     );
   }
 
-  // 🔥 CARREGAR REGISTROS - ATUALIZADO COM Source.server
   // 🔥 CARREGAR REGISTROS - VERSÃO DEFINITIVA
   Future<void> carregarRegistros({String? funcionarioId}) async {
+    debugPrint('🚨🚨🚨 ENTROU NO carregarRegistros NOVO 🚨🚨🚨');
     _carregando = true;
     _erro = null;
     notifyListeners();
 
     try {
-      // 🔥 1. CARREGAR FILA PENDENTES
+      // 🔥 CARREGAR FILA PENDENTES
       await _carregarFilaPendentes();
 
-      // 🔥 2. VERIFICAR INTERNET
+      // 🔥 VERIFICAR INTERNET
       final isOnline = await _verificarInternet();
 
       if (isOnline) {
         debugPrint('📡 [PONTO] Online, sincronizando pendentes...');
-
-        // 🔥 Sincronizar pendentes
         await sincronizarSeOnline();
-
-        // 🔥 Recarregar fila após sincronização
         await _carregarFilaPendentes();
 
-        // 🔥 3. BUSCAR DO SERVIDOR
         Query<Map<String, dynamic>> query = _firestore.collection(
           'registros_ponto',
         );
@@ -519,8 +591,7 @@ class PontoProvider extends ChangeNotifier {
           debugPrint('✅ [PONTO] ${_registros.length} registros do servidor');
         } catch (e) {
           debugPrint('⚠️ [PONTO] Erro ao buscar servidor: $e');
-
-          // 🔥 FALLBACK: CACHE DO FIRESTORE
+          
           try {
             debugPrint('📡 [PONTO] Fallback: buscando do cache Firestore...');
             final snapshot = await query
@@ -531,28 +602,20 @@ class PontoProvider extends ChangeNotifier {
             _registros = snapshot.docs.map((doc) {
               return RegistroPonto.fromFirestore(doc.data(), doc.id);
             }).toList();
-            debugPrint(
-              '✅ [PONTO] ${_registros.length} registros do cache Firestore',
-            );
+            debugPrint('✅ [PONTO] ${_registros.length} registros do cache Firestore');
           } catch (e2) {
             debugPrint('⚠️ [PONTO] Fallback Firestore falhou: $e2');
-
-            // 🔥 ÚLTIMO FALLBACK: SHAREDPREFERENCES
-            debugPrint('📴 [PONTO] Último fallback: SharedPreferences');
             await _carregarRegistrosCache();
           }
         }
       } else {
-        // 🔥 4. OFFLINE: CARREGAR DIRETO DO SHAREDPREFERENCES
         debugPrint('📴 [PONTO] Offline, carregando cache local...');
         await _carregarRegistrosCache();
       }
 
-      // 🔥 5. ADICIONAR REGISTROS DA FILA (PENDENTES)
+      // 🔥 ADICIONAR REGISTROS DA FILA
       if (_filaPendentes.isNotEmpty) {
-        debugPrint(
-          '📋 [PONTO] Adicionando ${_filaPendentes.length} registros pendentes...',
-        );
+        debugPrint('📋 [PONTO] Adicionando ${_filaPendentes.length} registros pendentes...');
         for (var item in _filaPendentes) {
           try {
             final registro = RegistroPonto.fromFirestore(
@@ -570,31 +633,24 @@ class PontoProvider extends ChangeNotifier {
         debugPrint('✅ ${_filaPendentes.length} registros da fila adicionados');
       }
 
-      // 🔥 6. SALVAR CACHE (SOMENTE SE TIVER DADOS)
-      if (_registros.isNotEmpty) {
-        debugPrint(
-          '💾 [PONTO] Salvando ${_registros.length} registros em cache...',
-        );
-        await _salvarRegistrosCache();
-      } else {
-        debugPrint('⚠️ [PONTO] _registros vazio, cache NÃO será sobrescrito');
-      }
+      // 🔥 SALVAR CACHE FORÇADO
+      debugPrint('💾 [PONTO] FORÇANDO salvamento de ${_registros.length} registros...');
+      await salvarCacheAgora();
 
       _carregando = false;
       notifyListeners();
       debugPrint('✅ Registros de ponto carregados: ${_registros.length}');
+      
     } catch (e) {
       _carregando = false;
       _erro = e.toString();
       notifyListeners();
       debugPrint('❌ Erro ao carregar registros: $e');
-
-      // 🔥 FALLBACK DE EMERGÊNCIA: TENTAR SHAREDPREFERENCES
+      
+      // 🔥 FALLBACK DE EMERGÊNCIA
       await _carregarRegistrosCache();
       if (_registros.isNotEmpty) {
-        debugPrint(
-          '✅ [PONTO] Fallback de emergência: ${_registros.length} registros do SharedPreferences',
-        );
+        debugPrint('✅ [PONTO] Fallback: ${_registros.length} registros do SharedPreferences');
         _erro = null;
         notifyListeners();
       }
@@ -831,6 +887,20 @@ class PontoProvider extends ChangeNotifier {
         enderecoPendente: localizacao.pendente,
       );
 
+      // 🔥 VERIFICAR SE O REGISTRO JÁ EXISTE NO CACHE (EVITAR DUPLICATAS)
+      final registroExistente = _registros.any((r) =>
+          r.funcionarioId == funcionarioId &&
+          r.tipo == tipo &&
+          r.dataHora.day == dataHoraRegistro.day &&
+          r.dataHora.month == dataHoraRegistro.month &&
+          r.dataHora.year == dataHoraRegistro.year
+      );
+
+      if (registroExistente) {
+        debugPrint('⚠️ [PONTO] Registro duplicado detectado, ignorando...');
+        throw Exception('Este ponto já foi registrado hoje!');
+      }
+
       final existeNoCache = _registros.any((r) => r.id == registro.id);
       if (!existeNoCache) {
         debugPrint('💾 [PONTO] Inserindo registro no _registros...');
@@ -945,13 +1015,29 @@ class PontoProvider extends ChangeNotifier {
     }
   }
 
-  // 🔥 MÉTODO PÚBLICO PARA FORÇAR SINCRONIZAÇÃO
+  // 🔥 MÉTODO PÚBLICO PARA FORÇAR SINCRONIZAÇÃO (COM BLOQUEIO)
   Future<void> sincronizarPendentes() async {
-    final isOnline = await _verificarInternet();
-    if (isOnline) {
-      await _sincronizarFila();
-    } else {
-      debugPrint('📴 [PONTO] Offline, não foi possível sincronizar');
+    // 🔥 EVITAR SINCRONIZAÇÃO CONCORRENTE
+    if (_sincronizando) {
+      debugPrint('⚠️ [PONTO] Sincronização já em andamento, ignorando...');
+      return;
+    }
+
+    _sincronizando = true;
+    debugPrint('🔒 [PONTO] Iniciando sincronização...');
+
+    try {
+      final isOnline = await _verificarInternet();
+      if (isOnline) {
+        await _sincronizarFila();
+      } else {
+        debugPrint('📴 [PONTO] Offline, não foi possível sincronizar');
+      }
+    } catch (e) {
+      debugPrint('❌ [PONTO] Erro ao sincronizar: $e');
+    } finally {
+      _sincronizando = false;
+      debugPrint('🔓 [PONTO] Sincronização finalizada');
     }
   }
 }
