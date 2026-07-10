@@ -21,9 +21,11 @@ class HistoricoProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint('🔍 [HISTORICO] Buscando registros para funcionarioId: $funcionarioId');
+
       // 🔥 Buscar todos os registros do funcionário (últimos 12 meses)
       final dataLimite = DateTime.now().subtract(const Duration(days: 365));
-      
+
       final snapshot = await _firestore
           .collection('registros_ponto')
           .where('funcionarioId', isEqualTo: funcionarioId)
@@ -31,9 +33,21 @@ class HistoricoProvider extends ChangeNotifier {
           .orderBy('dataHora', descending: true)
           .get();
 
+      debugPrint('📡 [HISTORICO] Documentos encontrados: ${snapshot.docs.length}');
+
+      if (snapshot.docs.isEmpty) {
+        debugPrint('⚠️ [HISTORICO] Nenhum registro encontrado para este funcionário');
+        _historico = [];
+        _carregando = false;
+        notifyListeners();
+        return;
+      }
+
       final registros = snapshot.docs.map((doc) {
         return RegistroPonto.fromFirestore(doc.data(), doc.id);
       }).toList();
+
+      debugPrint('✅ [HISTORICO] ${registros.length} registros carregados');
 
       // 🔥 Agrupar por mês/ano
       final Map<String, List<RegistroPonto>> grupos = {};
@@ -87,13 +101,13 @@ class HistoricoProvider extends ChangeNotifier {
 
       _carregando = false;
       notifyListeners();
-      
-      debugPrint('✅ Histórico carregado: ${_historico.length} meses');
+
+      debugPrint('✅ [HISTORICO] Histórico carregado: ${_historico.length} meses');
     } catch (e) {
       _carregando = false;
       _erro = e.toString();
       notifyListeners();
-      debugPrint('❌ Erro ao carregar histórico: $e');
+      debugPrint('❌ [HISTORICO] Erro ao carregar histórico: $e');
     }
   }
 }
