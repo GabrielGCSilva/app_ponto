@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'firebase_options.dart';
@@ -22,6 +23,14 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     debugPrint("2️⃣ Firebase inicializado");
+
+    // 🔥 CONFIGURAR FIRESTORE PARA USAR CACHE OFFLINE
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+    debugPrint("✅ Firestore configurado com cache offline");
+
   } catch (e) {
     debugPrint("❌ Firebase erro: $e");
   }
@@ -67,6 +76,7 @@ class AppPonto extends StatelessWidget {
         try {
           final pontoProvider = Provider.of<PontoProvider>(context, listen: false);
           pontoProvider.sincronizarPendentes();
+          pontoProvider.sincronizarEnderecosPendentes();
         } catch (e) {
           debugPrint('❌ [APP] Erro ao sincronizar: $e');
         }

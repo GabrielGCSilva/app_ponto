@@ -56,14 +56,11 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _inicializar() async {
-    // 🔥 VERIFICA INTERNET
     _isOnline = await _verificarInternet();
 
     if (_isOnline) {
-      // 🔥 ONLINE: CARREGA MAPA E LOCALIZAÇÃO
-      await _obterLocalizacao();
+      await _obterLocalizacaoComRetry();
     } else {
-      // 🔥 OFFLINE: MOSTRA TELA SIMPLES (SEM TENTAR LOCALIZAÇÃO)
       setState(() {
         _carregando = false;
         _carregandoMapa = false;
@@ -87,54 +84,78 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  // 🔥 OBTER LOCALIZAÇÃO (APENAS ONLINE)
-  Future<void> _obterLocalizacao() async {
-  setState(() {
-    _carregando = true;
-    _carregandoMapa = true;
-  });
+  // 🔥 OBTER LOCALIZAÇÃO COM RETRY (3 TENTATIVAS)
+  Future<void> _obterLocalizacaoComRetry() async {
+    setState(() {
+      _carregando = true;
+      _carregandoMapa = true;
+    });
 
-  try {
-    final position = await _localizacaoService.getLocalizacaoAtual();
-    
-    if (position != null) {
-      setState(() {
-        _localizacaoAtual = position;
-        _localizacaoDisponivel = true;
-      });
+    for (int i = 0; i < 3; i++) {
+      try {
+        debugPrint('🔄 [HOME] Tentativa ${i + 1} de 3...');
+        await _obterLocalizacao();
+        if (_localizacaoDisponivel) {
+          debugPrint('✅ [HOME] Localização obtida na tentativa ${i + 1}');
+          break;
+        }
+        if (i < 2) {
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      } catch (e) {
+        debugPrint('❌ [HOME] Tentativa ${i + 1} falhou: $e');
+      }
+    }
 
-      final endereco = await _localizacaoService.getEnderecoCompleto(
-        position.latitude,
-        position.longitude,
-      );
+    if (!_localizacaoDisponivel && mounted) {
       setState(() {
-        _enderecoAtual = endereco;
-      });
-    } else {
-      setState(() {
-        _localizacaoDisponivel = false;
-        _enderecoAtual = 'Localização não disponível';
+        _enderecoAtual = 'Não foi possível obter localização';
       });
     }
-  } catch (e) {
-    debugPrint('⚠️ Localização não disponível: $e');
-    setState(() {
-      _localizacaoDisponivel = false;
-      _enderecoAtual = 'Erro ao obter localização';
-    });
-  } finally {
+
     setState(() {
       _carregando = false;
       _carregandoMapa = false;
     });
   }
-}
+
+  Future<void> _obterLocalizacao() async {
+    try {
+      final position = await _localizacaoService.getLocalizacaoAtual();
+      
+      if (position != null) {
+        setState(() {
+          _localizacaoAtual = position;
+          _localizacaoDisponivel = true;
+        });
+
+        final endereco = await _localizacaoService.getEnderecoCompleto(
+          position.latitude,
+          position.longitude,
+        );
+        setState(() {
+          _enderecoAtual = endereco;
+        });
+      } else {
+        setState(() {
+          _localizacaoDisponivel = false;
+          _enderecoAtual = 'Localização não disponível';
+        });
+      }
+    } catch (e) {
+      debugPrint('⚠️ Localização não disponível: $e');
+      setState(() {
+        _localizacaoDisponivel = false;
+        _enderecoAtual = 'Erro ao obter localização';
+      });
+    }
+  }
 
   Future<void> _refreshLocalizacao() async {
     debugPrint('🔄 [HOME] Refresh manual da localização');
     _isOnline = await _verificarInternet();
     if (_isOnline) {
-      await _obterLocalizacao();
+      await _obterLocalizacaoComRetry();
     } else {
       setState(() {
         _localizacaoDisponivel = false;

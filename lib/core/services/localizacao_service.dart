@@ -7,14 +7,12 @@ class LocalizacaoService {
   // 🔥 VERIFICAR SE O GPS ESTÁ ATIVO
   Future<bool> isLocationAvailable() async {
     try {
-      // 🔥 VERIFICAR SE O SERVIÇO ESTÁ ATIVO
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         debugPrint('⚠️ Serviço de localização desativado');
         return false;
       }
 
-      // 🔥 VERIFICAR PERMISSÃO
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -36,7 +34,7 @@ class LocalizacaoService {
     }
   }
 
-  // 🔥 OBTER LOCALIZAÇÃO ATUAL (COM TIMEOUT)
+  // 🔥 OBTER LOCALIZAÇÃO ATUAL (COM TIMEOUT DE 5 SEGUNDOS)
   Future<Position?> getLocalizacaoAtual() async {
     if (kIsWeb) {
       debugPrint('🖥️ [WEB] Localização simulada');
@@ -50,20 +48,15 @@ class LocalizacaoService {
         return null;
       }
 
-      // 🔥 TIMEOUT ESTRITO DE 4 SEGUNDOS
+      // 🔥 TIMEOUT DE 5 SEGUNDOS (mais tempo para o GPS)
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 4),
-      ).timeout(
-        const Duration(seconds: 4),
-        onTimeout: () {
-          debugPrint('⚠️ Timeout ao obter localização (dispositivo offline)');
-          // ignore: null_argument_to_non_null_type
-          return Future.value(null);
-        },
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 5),
       );
 
-        debugPrint('📍 Localização obtida: ${position.latitude}, ${position.longitude}');
+      debugPrint(
+        '📍 Localização obtida: ${position.latitude}, ${position.longitude}',
+      );
       return position;
     } catch (e) {
       debugPrint('❌ Erro ao obter localização: $e');
@@ -74,16 +67,14 @@ class LocalizacaoService {
   // 🔥 CONVERTER LAT/LONG EM ENDEREÇO (com FALLBACK)
   Future<String> getEnderecoCompleto(double latitude, double longitude) async {
     try {
-      final placemarks = await placemarkFromCoordinates(
-        latitude,
-        longitude,
-      ).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          debugPrint('⚠️ Timeout na geocodificação');
-          return <Placemark>[];
-        },
-      );
+      final placemarks = await placemarkFromCoordinates(latitude, longitude)
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              debugPrint('⚠️ Timeout na geocodificação');
+              return <Placemark>[];
+            },
+          );
 
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
@@ -104,7 +95,6 @@ class LocalizacaoService {
 
       debugPrint('⚠️ Nenhum endereço encontrado, retornando coordenadas');
       return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
-      
     } catch (e) {
       debugPrint('❌ Erro na geocodificação: $e');
       return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
@@ -124,10 +114,7 @@ class LocalizacaoService {
       return 'Localização não disponível - São Paulo';
     }
 
-    return await getEnderecoCompleto(
-      position.latitude,
-      position.longitude,
-    );
+    return await getEnderecoCompleto(position.latitude, position.longitude);
   }
 
   // 🔥 BUSCAR LOCALIZAÇÃO COMPLETA (com FALLBACK)
@@ -143,13 +130,15 @@ class LocalizacaoService {
       }
 
       final position = await getLocalizacaoAtual();
-      
+
       if (position != null) {
         final endereco = await getEnderecoCompleto(
           position.latitude,
           position.longitude,
         );
-        debugPrint('📍 Localização real obtida: ${position.latitude}, ${position.longitude}');
+        debugPrint(
+          '📍 Localização real obtida: ${position.latitude}, ${position.longitude}',
+        );
         return {
           'latitude': position.latitude,
           'longitude': position.longitude,

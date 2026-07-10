@@ -23,7 +23,7 @@ class ValidacaoPontoService {
     // 🔥 2. SEGUNDO: Se for admin e já existe, perguntar se quer sobrescrever
     if (isAdmin && jaExiste) {
       return ValidationResult(
-        permitido: true,
+        permitido: true, // 🔥 MUDANÇA: permite (antes era false)
         mensagem:
             '⚠️ Atenção: Este ponto já foi registrado hoje. '
             'Deseja sobrescrever o registro anterior?',

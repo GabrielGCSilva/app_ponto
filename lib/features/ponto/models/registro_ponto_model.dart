@@ -68,10 +68,11 @@ class RegistroPonto {
   final double latitude;
   final double longitude;
   final String endereco;
-  final String metodoAutenticacao; // "digital", "facial", "senha"
+  final String metodoAutenticacao;
   final String? fotoURL;
   final bool sincronizado;
   final DateTime dataCriacao;
+  final bool enderecoPendente; // 🔥 NOVO
 
   RegistroPonto({
     required this.id,
@@ -86,6 +87,7 @@ class RegistroPonto {
     this.fotoURL,
     this.sincronizado = true,
     DateTime? dataCriacao,
+    this.enderecoPendente = false, // 🔥 NOVO
   }) : dataCriacao = dataCriacao ?? DateTime.now();
 
   // 🔥 Converter para Map (Firestore)
@@ -102,6 +104,7 @@ class RegistroPonto {
       'fotoURL': fotoURL,
       'sincronizado': sincronizado,
       'dataCriacao': dataCriacao.toIso8601String(),
+      'enderecoPendente': enderecoPendente, // 🔥 NOVO
     };
   }
 
@@ -120,6 +123,7 @@ class RegistroPonto {
       fotoURL: data['fotoURL'],
       sincronizado: data['sincronizado'] ?? true,
       dataCriacao: DateTime.parse(data['dataCriacao']),
+      enderecoPendente: data['enderecoPendente'] ?? false, // 🔥 NOVO
     );
   }
 

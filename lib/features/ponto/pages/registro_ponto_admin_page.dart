@@ -128,7 +128,10 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                           labelText: 'Funcionário *',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.person),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                         initialValue: _funcionarioSelecionado,
                         items: funcionarioProvider.funcionarios.map((f) {
@@ -151,7 +154,10 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                           labelText: 'Tipo de Registro *',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.timer),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                         initialValue: _tipoSelecionado,
                         items: TipoPonto.values.map((tipo) {
@@ -179,7 +185,10 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                           labelText: 'Método de Autenticação *',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.security),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                         initialValue: _metodoAutenticacao,
                         items: _metodos.map((metodo) {
@@ -214,11 +223,19 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                                     decoration: const InputDecoration(
                                       labelText: 'Data',
                                       border: OutlineInputBorder(),
-                                      prefixIcon: Icon(Icons.calendar_today, size: 18),
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      prefixIcon: Icon(
+                                        Icons.calendar_today,
+                                        size: 18,
+                                      ),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 8,
+                                      ),
                                     ),
                                     readOnly: _usarDataHoraAtual,
-                                    onTap: _usarDataHoraAtual ? null : _selecionarData,
+                                    onTap: _usarDataHoraAtual
+                                        ? null
+                                        : _selecionarData,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -228,24 +245,40 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                                     decoration: const InputDecoration(
                                       labelText: 'Hora',
                                       border: OutlineInputBorder(),
-                                      prefixIcon: Icon(Icons.access_time, size: 18),
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      prefixIcon: Icon(
+                                        Icons.access_time,
+                                        size: 18,
+                                      ),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 8,
+                                      ),
                                     ),
                                     readOnly: _usarDataHoraAtual,
-                                    onTap: _usarDataHoraAtual ? null : _selecionarHora,
+                                    onTap: _usarDataHoraAtual
+                                        ? null
+                                        : _selecionarHora,
                                   ),
                                 ),
                                 IconButton(
                                   icon: Icon(
-                                    _usarDataHoraAtual ? Icons.toggle_on : Icons.toggle_off,
-                                    color: _usarDataHoraAtual ? Colors.blue : Colors.grey,
+                                    _usarDataHoraAtual
+                                        ? Icons.toggle_on
+                                        : Icons.toggle_off,
+                                    color: _usarDataHoraAtual
+                                        ? Colors.blue
+                                        : Colors.grey,
                                   ),
                                   onPressed: () {
                                     setState(() {
                                       _usarDataHoraAtual = !_usarDataHoraAtual;
                                       if (_usarDataHoraAtual) {
-                                        _dataController.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
-                                        _horaController.text = DateFormat('HH:mm').format(DateTime.now());
+                                        _dataController.text = DateFormat(
+                                          'dd/MM/yyyy',
+                                        ).format(DateTime.now());
+                                        _horaController.text = DateFormat(
+                                          'HH:mm',
+                                        ).format(DateTime.now());
                                       }
                                     });
                                   },
@@ -257,7 +290,10 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text(
                                   '⚠️ Editando manualmente',
-                                  style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.orange.shade700,
+                                  ),
                                 ),
                               ),
                           ],
@@ -282,7 +318,10 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                                   labelText: 'Local',
                                   border: InputBorder.none,
                                   prefixIcon: Icon(Icons.location_on, size: 18),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                 ),
                                 readOnly: _usarLocalizacaoAtual,
                                 style: const TextStyle(fontSize: 13),
@@ -290,12 +329,17 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                             ),
                             IconButton(
                               icon: Icon(
-                                _usarLocalizacaoAtual ? Icons.toggle_on : Icons.toggle_off,
-                                color: _usarLocalizacaoAtual ? Colors.blue : Colors.grey,
+                                _usarLocalizacaoAtual
+                                    ? Icons.toggle_on
+                                    : Icons.toggle_off,
+                                color: _usarLocalizacaoAtual
+                                    ? Colors.blue
+                                    : Colors.grey,
                               ),
                               onPressed: () {
                                 setState(() {
-                                  _usarLocalizacaoAtual = !_usarLocalizacaoAtual;
+                                  _usarLocalizacaoAtual =
+                                      !_usarLocalizacaoAtual;
                                   if (_usarLocalizacaoAtual) {
                                     _carregarLocalizacaoAtual();
                                   }
@@ -311,7 +355,10 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton.icon(
-                          onPressed: _registrando || _funcionarioSelecionado == null || _tipoSelecionado == null
+                          onPressed:
+                              _registrando ||
+                                  _funcionarioSelecionado == null ||
+                                  _tipoSelecionado == null
                               ? null
                               : _registrarPonto,
                           style: ElevatedButton.styleFrom(
@@ -325,7 +372,10 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.check_circle, size: 20),
                           label: Text(
@@ -354,11 +404,17 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                     children: [
                       const Text(
                         '📋 Últimos Registros',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         '${pontoProvider.registros.length} registros',
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                     ],
                   ),
@@ -367,23 +423,30 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                     child: pontoProvider.carregando
                         ? const Center(child: CircularProgressIndicator())
                         : pontoProvider.registros.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.history, size: 48, color: Colors.grey),
-                                    const SizedBox(height: 8),
-                                    Text('Nenhum registro encontrado', style: TextStyle(color: Colors.grey)),
-                                  ],
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.history,
+                                  size: 48,
+                                  color: Colors.grey,
                                 ),
-                              )
-                            : ListView.builder(
-                                itemCount: pontoProvider.registros.length,
-                                itemBuilder: (context, index) {
-                                  final registro = pontoProvider.registros[index];
-                                  return _buildRegistroCard(registro);
-                                },
-                              ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Nenhum registro encontrado',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: pontoProvider.registros.length,
+                            itemBuilder: (context, index) {
+                              final registro = pontoProvider.registros[index];
+                              return _buildRegistroCard(registro);
+                            },
+                          ),
                   ),
                 ],
               ),
@@ -416,8 +479,14 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(registro.horaFormatada, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-            Text(registro.dataFormatada, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+            Text(
+              registro.horaFormatada,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              registro.dataFormatada,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            ),
           ],
         ),
       ),
@@ -459,6 +528,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
     }
   }
 
+  // 🔥 _registrarPonto COM isAdmin: true E CONTEXT
   Future<void> _registrarPonto({bool sobrescrever = false}) async {
     final messenger = ScaffoldMessenger.of(context);
     final pontoProvider = context.read<PontoProvider>();
@@ -482,7 +552,9 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         throw Exception('Usuário não encontrado. Faça login novamente.');
       }
 
-      final funcionario = funcionarioProvider.buscarPorId(_funcionarioSelecionado!);
+      final funcionario = funcionarioProvider.buscarPorId(
+        _funcionarioSelecionado!,
+      );
       if (funcionario == null) {
         throw Exception('Funcionário não encontrado');
       }
@@ -494,7 +566,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         try {
           final dataPartes = _dataController.text.split('/');
           final horaPartes = _horaController.text.split(':');
-          
+
           dataHoraRegistro = DateTime(
             int.parse(dataPartes[2]),
             int.parse(dataPartes[1]),
@@ -510,7 +582,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
       String endereco;
       double latitude;
       double longitude;
-      
+
       if (_usarLocalizacaoAtual) {
         try {
           final localizacao = await localizacaoService.getLocalizacaoCompleta();
@@ -532,6 +604,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         longitude = -46.6333;
       }
 
+      // 🔥 CHAMADA COM isAdmin: true E context
       await pontoProvider.registrarPonto(
         funcionarioId: funcionario.id,
         funcionarioNome: funcionario.nome,
@@ -542,6 +615,8 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         endereco: endereco,
         latitude: latitude,
         longitude: longitude,
+        isAdmin: true,
+        context: context, // 🔥 Passa o contexto para exibir diálogo
       );
 
       await pontoProvider.carregarRegistros();
@@ -561,12 +636,15 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('❌ Erro: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Não mostrar erro se foi cancelado pelo usuário
+        if (e.toString() != 'Operação cancelada pelo administrador') {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('❌ ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) {
