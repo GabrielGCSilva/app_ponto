@@ -21,11 +21,11 @@ class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
   late MapController _mapController;
   Position? _localizacaoAtual;
-  bool _carregando = true;
-  bool _carregandoMapa = true;
   String? _enderecoAtual;
   bool _localizacaoDisponivel = false;
   bool _isOnline = false;
+  bool _permicaoNegada = false;
+  bool _buscando = false;
 
   bool _cardExpandido = false;
   late AnimationController _animationController;
@@ -35,6 +35,9 @@ class _HomePageState extends State<HomePage>
 
   TipoPonto? _tipoSelecionado;
   bool _registrando = false;
+
+  // 🔥 CENTRO PADRÃO (SÃO PAULO) - FIXO
+  static const LatLng _centroPadrao = LatLng(-23.5505, -46.6333);
 
   @override
   void initState() {
@@ -59,13 +62,11 @@ class _HomePageState extends State<HomePage>
     _isOnline = await _verificarInternet();
 
     if (_isOnline) {
-      await _obterLocalizacaoComRetry();
+      await _obterLocalizacaoCompleta();
     } else {
       setState(() {
-        _carregando = false;
-        _carregandoMapa = false;
-        _localizacaoDisponivel = false;
         _enderecoAtual = '📍 Modo offline - Conecte-se para ver o mapa';
+        _localizacaoDisponivel = false;
       });
     }
   }
@@ -84,91 +85,227 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  // 🔥 OBTER LOCALIZAÇÃO COM RETRY (3 TENTATIVAS)
-  Future<void> _obterLocalizacaoComRetry() async {
-    setState(() {
-      _carregando = true;
-      _carregandoMapa = true;
-    });
-
-    for (int i = 0; i < 3; i++) {
-      try {
-        debugPrint('🔄 [HOME] Tentativa ${i + 1} de 3...');
-        await _obterLocalizacao();
-        if (_localizacaoDisponivel) {
-          debugPrint('✅ [HOME] Localização obtida na tentativa ${i + 1}');
-          break;
-        }
-        if (i < 2) {
-          await Future.delayed(const Duration(seconds: 1));
-        }
-      } catch (e) {
-        debugPrint('❌ [HOME] Tentativa ${i + 1} falhou: $e');
-      }
+  // 🔥 OBTER LOCALIZAÇÃO COMPLETA
+  Future<void> _obterLocalizacaoCompleta() async {
+    if (_buscando) {
+      debugPrint('⚠️ [HOME] Já está buscando localização');
+      return;
     }
 
-    if (!_localizacaoDisponivel && mounted) {
+    try {
+      _buscando = true;
+
+      // 🔥 PASSO 1: Verificar permissão
+      final disponivel = await _localizacaoService.isLocationAvailable();
+
+      if (!disponivel) {
+        setState(() {
+          _permicaoNegada = true;
+          _enderecoAtual = '📍 Permissão de localização negada';
+          _localizacaoDisponivel = false;
+          _buscando = false;
+        });
+        return;
+      }
+
       setState(() {
-        _enderecoAtual = 'Não foi possível obter localização';
+        _permicaoNegada = false;
+      });
+
+      // 🔥 PASSO 2: Última posição conhecida (INSTANTÂNEO)
+      final lastPosition = await Geolocator.getLastKnownPosition();
+
+      if (lastPosition != null) {
+        debugPrint('📍 [HOME] Última posição: ${lastPosition.latitude}, ${lastPosition.longitude}');
+        _atualizarMapa(lastPosition);
+      }
+
+      // 🔥 PASSO 3: Stream de posição (mais suave que getCurrentPosition)
+      _escutarStreamPosicao();
+
+    } catch (e) {
+      debugPrint('❌ [HOME] Erro ao obter localização: $e');
+      setState(() {
+        _enderecoAtual = 'Erro ao obter localização';
+        _localizacaoDisponivel = false;
+        _buscando = false;
       });
     }
+  }
+
+  // 🔥 ESCUTAR STREAM DE POSIÇÃO (EM TEMPO REAL)
+  Future<void> _escutarStreamPosicao() async {
+    try {
+      // 🔥 Verificar se o GPS está disponível
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        debugPrint('⚠️ [HOME] GPS desativado');
+        setState(() {
+          _enderecoAtual = '📍 Ative o GPS para obter localização';
+          _localizacaoDisponivel = false;
+          _buscando = false;
+        });
+        return;
+      }
+
+      // 🔥 Criar stream com timeout
+      final stream = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          distanceFilter: 10, // Atualiza a cada 10 metros
+        ),
+      ).timeout(
+        const Duration(seconds: 20),
+        onTimeout: (sink) => sink.close(),
+      );
+
+      bool primeiraPosicao = true;
+
+      // 🔥 Escutar a stream
+      await for (final position in stream) {
+        if (!mounted) break;
+
+        debugPrint('📍 [HOME] Stream posição: ${position.latitude}, ${position.longitude}');
+
+        if (primeiraPosicao) {
+          primeiraPosicao = false;
+          _buscando = false;
+        }
+
+        _atualizarMapa(position);
+
+        // 🔥 Buscar endereço (apenas na primeira vez)
+        if (_enderecoAtual == null || _enderecoAtual!.contains('Buscando') || _enderecoAtual!.contains('Localização')) {
+          _buscarEnderecoEmBackground(position);
+        }
+
+        // 🔥 Sair do loop após receber a primeira posição boa
+        if (_localizacaoDisponivel && position.accuracy < 100) {
+          break;
+        }
+      }
+
+      // 🔥 Se saiu do loop sem posição, tentar fallback
+      if (!_localizacaoDisponivel && mounted) {
+        _buscando = false;
+        _enderecoAtual = 'Não foi possível obter localização';
+        setState(() {});
+      }
+
+    } catch (e) {
+      debugPrint('⚠️ [HOME] Erro na stream: $e');
+      
+      // 🔥 FALLBACK: tentar getCurrentPosition
+      if (mounted) {
+        _buscando = false;
+        await _buscarPosicaoAtualFallback();
+      }
+    }
+  }
+
+  // 🔥 FALLBACK: BUSCAR POSIÇÃO ATUAL
+  Future<void> _buscarPosicaoAtualFallback() async {
+    try {
+      debugPrint('🔄 [HOME] Fallback: getCurrentPosition');
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 15),
+      );
+
+      if (mounted) {
+        _atualizarMapa(position);
+        _buscarEnderecoEmBackground(position);
+      }
+    } catch (e) {
+      debugPrint('⚠️ [HOME] Fallback falhou: $e');
+      if (mounted) {
+        setState(() {
+          _enderecoAtual = 'Não foi possível obter localização';
+          _localizacaoDisponivel = false;
+          _buscando = false;
+        });
+      }
+    }
+  }
+
+  // 🔥 ATUALIZAR MAPA COM NOVA POSIÇÃO
+  void _atualizarMapa(Position position) {
+    if (!mounted) return;
 
     setState(() {
-      _carregando = false;
-      _carregandoMapa = false;
+      _localizacaoAtual = position;
+      _localizacaoDisponivel = true;
+    });
+
+    // 🔥 Mover o mapa
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _mapController.move(
+          LatLng(position.latitude, position.longitude),
+          16,
+        );
+      }
     });
   }
 
-  Future<void> _obterLocalizacao() async {
+  // 🔥 BUSCAR ENDEREÇO EM BACKGROUND
+  Future<void> _buscarEnderecoEmBackground(Position position) async {
     try {
-      final position = await _localizacaoService.getLocalizacaoAtual();
-      
-      if (position != null) {
-        setState(() {
-          _localizacaoAtual = position;
-          _localizacaoDisponivel = true;
-        });
+      final endereco = await _localizacaoService.getEnderecoCompleto(
+        position.latitude,
+        position.longitude,
+      );
 
-        final endereco = await _localizacaoService.getEnderecoCompleto(
-          position.latitude,
-          position.longitude,
-        );
+      if (mounted) {
         setState(() {
           _enderecoAtual = endereco;
         });
-      } else {
-        setState(() {
-          _localizacaoDisponivel = false;
-          _enderecoAtual = 'Localização não disponível';
-        });
+        debugPrint('📍 [HOME] Endereço obtido: $endereco');
       }
     } catch (e) {
-      debugPrint('⚠️ Localização não disponível: $e');
+      debugPrint('⚠️ [HOME] Erro ao buscar endereço: $e');
+      if (mounted) {
+        setState(() {
+          _enderecoAtual = '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
+        });
+      }
+    }
+  }
+
+  // 🔥 SOLICITAR PERMISSÃO NOVAMENTE
+  Future<void> _solicitarPermissaoNovamente() async {
+    final disponivel = await _localizacaoService.isLocationAvailable();
+
+    if (disponivel) {
+      _buscando = false;
+      await _obterLocalizacaoCompleta();
+    } else {
       setState(() {
+        _permicaoNegada = true;
+        _enderecoAtual = '📍 Permissão de localização negada';
         _localizacaoDisponivel = false;
-        _enderecoAtual = 'Erro ao obter localização';
       });
     }
   }
 
   Future<void> _refreshLocalizacao() async {
-    debugPrint('🔄 [HOME] Refresh manual da localização');
+    debugPrint('🔄 [HOME] Refresh manual');
     _isOnline = await _verificarInternet();
+
     if (_isOnline) {
-      await _obterLocalizacaoComRetry();
+      _buscando = false;
+      await _obterLocalizacaoCompleta();
     } else {
       setState(() {
         _localizacaoDisponivel = false;
-        _enderecoAtual = '📍 Modo offline - Conecte-se para ver o mapa';
-        _carregando = false;
-        _carregandoMapa = false;
+        _enderecoAtual = '📍 Modo offline';
       });
     }
   }
 
   Future<void> _carregarDadosUsuario() async {
     final usuario = await _authService.getUsuarioSalvo();
-    debugPrint('🔍 [HOME] Dados do usuário carregados: $usuario');
+    debugPrint('🔍 [HOME] Dados do usuário: $usuario');
   }
 
   void _toggleCard() {
@@ -243,18 +380,61 @@ class _HomePageState extends State<HomePage>
       ),
       body: Stack(
         children: [
+          // 🔥 MAPA - ÚNICO, NUNCA É DESTRUÍDO
           Positioned.fill(
-            child: _carregando || _carregandoMapa
-                ? const Center(child: CircularProgressIndicator())
-                : _isOnline && _localizacaoDisponivel && _localizacaoAtual != null
-                ? FlutterMap(
+            child: _permicaoNegada
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.location_off,
+                          size: 60,
+                          color: Colors.red.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '📍 Permissão de Localização',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            'O app precisa acessar sua localização para registrar os pontos.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _solicitarPermissaoNovamente,
+                          icon: const Icon(Icons.gps_fixed),
+                          label: const Text('Conceder Permissão'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade700,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
-                      initialCenter: LatLng(
-                        _localizacaoAtual!.latitude,
-                        _localizacaoAtual!.longitude,
-                      ),
-                      initialZoom: 16,
+                      initialCenter: _centroPadrao, // 🔥 FIXO
+                      initialZoom: 14,
                       interactionOptions: const InteractionOptions(
                         flags: InteractiveFlag.all,
                       ),
@@ -265,78 +445,97 @@ class _HomePageState extends State<HomePage>
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.seu.app_ponto',
                       ),
+                      // 🔥 MARCADOR DINÂMICO
                       MarkerLayer(
                         markers: [
-                          Marker(
-                            width: 40,
-                            height: 40,
-                            point: LatLng(
-                              _localizacaoAtual!.latitude,
-                              _localizacaoAtual!.longitude,
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.blue.withValues(alpha: 0.3),
-                                border: Border.all(
+                          if (_localizacaoDisponivel && _localizacaoAtual != null)
+                            Marker(
+                              width: 40,
+                              height: 40,
+                              point: LatLng(
+                                _localizacaoAtual!.latitude,
+                                _localizacaoAtual!.longitude,
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.blue.withValues(alpha: 0.3),
+                                  border: Border.all(
+                                    color: Colors.blue,
+                                    width: 3,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.my_location,
                                   color: Colors.blue,
-                                  width: 3,
+                                  size: 24,
                                 ),
                               ),
-                              child: const Icon(
-                                Icons.my_location,
-                                color: Colors.blue,
-                                size: 24,
+                            ),
+                          if (!_localizacaoDisponivel && _isOnline)
+                            Marker(
+                              width: 40,
+                              height: 40,
+                              point: _centroPadrao,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.grey.withValues(alpha: 0.3),
+                                  border: Border.all(
+                                    color: Colors.grey,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.search,
+                                  color: Colors.grey,
+                                  size: 24,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     ],
-                  )
-                : Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          _isOnline ? Icons.location_off : Icons.wifi_off,
-                          size: 60,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _isOnline
-                              ? (_enderecoAtual ?? 'Localização indisponível')
-                              : '📴 Modo offline',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _isOnline
-                              ? 'Ative o GPS e tente novamente'
-                              : 'Conecte-se à internet para ver o mapa',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: _refreshLocalizacao,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Tentar novamente'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade700,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
           ),
+          // 🔥 OVERLAY DE CARREGAMENTO (LEVE)
+          if (_isOnline && !_localizacaoDisponivel && !_permicaoNegada && _buscando)
+            Positioned(
+              top: 80,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Buscando localização...',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (_cardExpandido)
             Positioned.fill(
               child: GestureDetector(
