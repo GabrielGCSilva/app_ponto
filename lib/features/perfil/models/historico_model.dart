@@ -45,16 +45,17 @@ class HistoricoDia {
     : totalHoras = Duration.zero;
 
   String get label {
+    // 🔥 ORDEM CORRETA: começa com Segunda (weekday = 1)
     final diasSemana = [
-      'Domingo',
-      'Segunda',
-      'Terça',
-      'Quarta',
-      'Quinta',
-      'Sexta',
-      'Sábado',
+      'Segunda', // weekday = 1 → índice 0
+      'Terça', // weekday = 2 → índice 1
+      'Quarta', // weekday = 3 → índice 2
+      'Quinta', // weekday = 4 → índice 3
+      'Sexta', // weekday = 5 → índice 4
+      'Sábado', // weekday = 6 → índice 5
+      'Domingo', // weekday = 7 → índice 6
     ];
-    return '${diasSemana[data.weekday]}, ${data.day} de ${_nomeMes(data.month)}';
+    return '${diasSemana[data.weekday - 1]}, ${data.day} de ${_nomeMes(data.month)}';
   }
 
   String _nomeMes(int mes) {

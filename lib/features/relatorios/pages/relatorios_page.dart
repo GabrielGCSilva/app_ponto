@@ -47,14 +47,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   void initState() {
     super.initState();
 
-    // Validar e definir parâmetros recebidos
     if (widget.funcionarioId != null && widget.funcionarioId!.isNotEmpty) {
       _funcionarioSelecionado = widget.funcionarioId;
     }
     _mesSelecionado = widget.mes ?? DateTime.now().month;
     _anoSelecionado = widget.ano ?? DateTime.now().year;
 
-    // Gerar relatório automaticamente se tiver funcionário
     if (_funcionarioSelecionado != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _gerarRelatorio();
@@ -78,7 +76,9 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           children: [
             _buildCabecalho(),
             const SizedBox(height: 20),
-            _buildFiltrosCard(funcionarioProvider),
+            _buildFiltros(funcionarioProvider),
+            const SizedBox(height: 16),
+            _buildBotoesAcao(),
             const SizedBox(height: 20),
             _buildConteudoPrincipal(),
           ],
@@ -137,26 +137,8 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
-  // 🎯 CARD DE FILTROS
-  Widget _buildFiltrosCard(FuncionarioProvider funcionarioProvider) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildFiltrosResponsivos(funcionarioProvider),
-            const SizedBox(height: 16),
-            _buildBotoesAcao(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 📱 FILTROS RESPONSIVOS
-  Widget _buildFiltrosResponsivos(FuncionarioProvider funcionarioProvider) {
+  // 🎯 FILTROS (SEM CARD)
+  Widget _buildFiltros(FuncionarioProvider funcionarioProvider) {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth > 800) {
@@ -288,9 +270,11 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
-  // 🎯 BOTÕES DE AÇÃO
+  // 🎯 BOTÕES DE AÇÃO (SEM CARD)
   Widget _buildBotoesAcao() {
-    return Row(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
       children: [
         _buildActionButton(
           icon: Icons.picture_as_pdf,
@@ -298,14 +282,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           color: Colors.blue,
           onTap: _funcionarioSelecionado == null ? null : _gerarRelatorio,
         ),
-        const SizedBox(width: 12),
         _buildActionButton(
           icon: Icons.table_chart,
           label: 'Exportar Excel',
           color: Colors.green,
           onTap: _relatorio == null ? null : _exportarExcel,
         ),
-        const SizedBox(width: 12),
         _buildActionButton(
           icon: Icons.ios_share,
           label: 'Compartilhar Link',
@@ -323,17 +305,15 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     required Color color,
     VoidCallback? onTap,
   }) {
-    return Expanded(
-      child: OutlinedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, color: color),
-        label: Text(label, style: TextStyle(color: color)),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          side: BorderSide(color: color),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, color: color),
+      label: Text(label, style: TextStyle(color: color)),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        side: BorderSide(color: color),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
         ),
       ),
     );
@@ -878,10 +858,14 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           'espelho_ponto_${_relatorio!.funcionarioNome}_${_relatorio!.mes}_${_relatorio!.ano}.xlsx';
 
       if (kIsWeb) {
-        // 🔥 WEB: Usar universal_html (já importado no topo)
-        await _exportarExcelWeb(bytes, nomeArquivo);
+        final blob = html.Blob([
+          bytes,
+        ], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)..download = nomeArquivo;
+        anchor.click();
+        html.Url.revokeObjectUrl(url);
       } else {
-        // 🔥 ANDROID/iOS/DESKTOP: Salvar e compartilhar
         await ExcelExportHelper.salvarECompartilhar(bytes, nomeArquivo);
       }
 
@@ -906,22 +890,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         );
       }
-    }
-  }
-
-  // 🌐 Exportar para Web usando universal_html
-  Future<void> _exportarExcelWeb(Uint8List bytes, String nomeArquivo) async {
-    try {
-      // 🔥 Usando universal_html (importado no topo do arquivo)
-      final blob = html.Blob([
-        bytes,
-      ], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)..download = nomeArquivo;
-      anchor.click();
-      html.Url.revokeObjectUrl(url);
-    } catch (e) {
-      throw Exception('Erro ao exportar para Web: $e');
     }
   }
 
