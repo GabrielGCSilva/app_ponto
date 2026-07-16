@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../core/services/auth_service.dart';
 import 'app_drawer.dart';
 
 class AppLayout extends StatelessWidget {
@@ -25,21 +26,21 @@ class AppLayout extends StatelessWidget {
         elevation: 0,
         actions: [
           if (mostrarMenu)
-            PopupMenuButton<String>(
+            PopupMenuButton(
               icon: const CircleAvatar(
                 backgroundColor: Colors.white,
                 child: Icon(Icons.person, color: Colors.blue),
               ),
               tooltip: 'Menu do usuário',
-              onSelected: (value) async {
+              onSelected: (value) {
                 if (value == 'profile') {
                   context.push('/perfil');
                 } else if (value == 'logout') {
                   _confirmarLogout(context);
                 }
               },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
+              itemBuilder: (context) => const [
+                PopupMenuItem(
                   value: 'profile',
                   child: Row(
                     children: [
@@ -49,13 +50,16 @@ class AppLayout extends StatelessWidget {
                     ],
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'logout',
                   child: Row(
                     children: [
                       Icon(Icons.logout, color: Colors.red),
                       SizedBox(width: 12),
-                      Text('Sair', style: TextStyle(color: Colors.red)),
+                      Text(
+                        'Sair',
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ],
                   ),
                 ),
@@ -68,8 +72,9 @@ class AppLayout extends StatelessWidget {
     );
   }
 
-  // 🔥 MÉTODO DE LOGOUT CORRIGIDO
   void _confirmarLogout(BuildContext context) {
+    final authService = AuthService();
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -82,17 +87,28 @@ class AppLayout extends StatelessWidget {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sair'),
             onPressed: () async {
-              // 🔥 Fechar dialog
+              // Fecha o diálogo
               Navigator.pop(dialogContext);
-              
+
               try {
-                // 🔥 Fazer logout
-                await FirebaseAuth.instance.signOut();
+                debugPrint('🚪 [APP_LAYOUT] Iniciando logout...');
+
+                await authService.logout();
+
+                debugPrint('🚪 [APP_LAYOUT] Logout finalizado.');
+
                 if (context.mounted) {
                   context.go('/login');
                 }
               } catch (e) {
+                debugPrint('❌ [APP_LAYOUT] Erro no logout: $e');
+
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -103,11 +119,6 @@ class AppLayout extends StatelessWidget {
                 }
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Sair'),
           ),
         ],
       ),
