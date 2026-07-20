@@ -265,6 +265,13 @@ class _HomePageState extends State<HomePage>
 
   // 🔥 SOLICITAR PERMISSÃO NOVAMENTE
   Future<void> _solicitarPermissaoNovamente() async {
+    
+     // 🔥 TENTAR ABRIR CONFIGURAÇÕES DO GPS
+  try {
+    await Geolocator.openLocationSettings();
+  } catch (e) {
+    debugPrint('⚠️ [HOME] Erro ao abrir configurações: $e');
+  }
     final disponivel = await _localizacaoService.isLocationAvailable();
 
     if (disponivel) {

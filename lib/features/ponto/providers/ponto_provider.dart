@@ -6,6 +6,7 @@ import 'dart:convert';
 import '../models/registro_ponto_model.dart';
 import '../../../core/services/localizacao_service.dart';
 import '../../../core/services/validacao_ponto_service.dart';
+import 'package:geolocator/geolocator.dart';
 
 class PontoProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -392,48 +393,62 @@ class PontoProvider extends ChangeNotifier {
   }
 
   // 🔥 OBTER LOCALIZAÇÃO (PRIORIDADE: PARÂMETRO > LOCALIZACAO_SERVICE)
-  Future<({double lat, double lng, String endereco, bool pendente})>
-  _obterLocalizacao({
-    double? latitude,
-    double? longitude,
-    String? endereco,
-  }) async {
-    // 🔥 PRIORIDADE 1: Localização recebida por parâmetro (da Home)
-    if (latitude != null && longitude != null && endereco != null) {
-      debugPrint('📍 [PONTO] Usando localização recebida por parâmetro');
-      return (
-        lat: latitude,
-        lng: longitude,
-        endereco: endereco,
-        pendente: false,
-      );
-    }
-
-    // 🔥 PRIORIDADE 2: Buscar do LocalizacaoService (fallback)
-    try {
-      debugPrint('📍 [PONTO] Buscando localização do service...');
-      final localizacao = await localizacaoService.getLocalizacaoCompleta();
-      if (localizacao != null) {
-        return (
-          lat: localizacao['latitude'] as double,
-          lng: localizacao['longitude'] as double,
-          endereco: localizacao['endereco'] as String,
-          pendente: false,
-        );
-      }
-    } catch (e) {
-      debugPrint('⚠️ [PONTO] Erro ao obter localização do service: $e');
-    }
-
-    // 🔥 FALLBACK FINAL
-    debugPrint('⚠️ [PONTO] Nenhuma localização disponível, usando fallback');
+Future<({double lat, double lng, String endereco, bool pendente})>
+_obterLocalizacao({
+  double? latitude,
+  double? longitude,
+  String? endereco,
+}) async {
+  // 🔥 PRIORIDADE 1: Localização recebida por parâmetro (da Home)
+  if (latitude != null && longitude != null && endereco != null) {
+    debugPrint('📍 [PONTO] Usando localização recebida por parâmetro');
     return (
-      lat: -23.5505,
-      lng: -46.6333,
-      endereco: 'Localização não disponível',
+      lat: latitude,
+      lng: longitude,
+      endereco: endereco,
       pendente: false,
     );
   }
+
+  // 🔥 VERIFICAR SE O GPS ESTÁ ATIVO
+  final gpsAtivo = await Geolocator.isLocationServiceEnabled();
+  if (!gpsAtivo) {
+    debugPrint('📍 [PONTO] GPS DESLIGADO - NÃO É POSSÍVEL REGISTRAR PONTO!');
+    throw Exception('⚠️ Ative o GPS para registrar o ponto!');
+  }
+
+  // 🔥 VERIFICAR PERMISSÃO
+  final temPermissao = await localizacaoService.isLocationAvailable();
+  if (!temPermissao) {
+    debugPrint('📍 [PONTO] PERMISSÃO NEGADA - NÃO É POSSÍVEL REGISTRAR PONTO!');
+    throw Exception('⚠️ Conceda permissão de localização para registrar o ponto!');
+  }
+
+  // 🔥 PRIORIDADE 2: Buscar do LocalizacaoService
+  try {
+    debugPrint('📍 [PONTO] Buscando localização do service...');
+    final localizacao = await localizacaoService.getLocalizacaoCompleta();
+    if (localizacao != null) {
+      return (
+        lat: localizacao['latitude'] as double,
+        lng: localizacao['longitude'] as double,
+        endereco: localizacao['endereco'] as String,
+        pendente: false,
+      );
+    }
+  } catch (e) {
+    debugPrint('⚠️ [PONTO] Erro ao obter localização do service: $e');
+  }
+
+  // 🔥 FALLBACK FINAL - só chega aqui se tudo falhou
+  debugPrint('⚠️ [PONTO] Nenhuma localização disponível, usando fallback');
+  return (
+    lat: -23.5505,
+    lng: -46.6333,
+    endereco: 'Localização não disponível',
+    pendente: false,
+  );
+}
 
   // 🔥 MÉTODO PRIVADO PARA BUSCAR REGISTROS DO PERÍODO
   Future<List<RegistroPonto>> _buscarRegistrosDoPeriodo({
