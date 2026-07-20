@@ -18,7 +18,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late MapController _mapController;
   Position? _localizacaoAtual;
   String? _enderecoAtual;
@@ -42,6 +42,7 @@ class _HomePageState extends State<HomePage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _mapController = MapController();
     _animationController = AnimationController(
       vsync: this,
@@ -54,8 +55,49 @@ class _HomePageState extends State<HomePage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _animationController.dispose();
     super.dispose();
+  }
+
+  // 🔥 DETECTAR QUANDO O APP VOLTA PARA PRIMEIRO PLANO
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('📱 [HOME] App voltou para primeiro plano');
+      _verificarPermissaoAoVoltar();
+    }
+  }
+
+  Future<void> _verificarPermissaoAoVoltar() async {
+    // Só verificar se a permissão estava negada ou se não tem localização
+    if (_permicaoNegada || !_localizacaoDisponivel) {
+      final disponivel = await _localizacaoService.isLocationAvailable();
+      if (disponivel) {
+        debugPrint('📍 [HOME] Permissão concedida, recarregando localização...');
+        setState(() {
+          _permicaoNegada = false;
+          _buscando = false;
+          _enderecoAtual = 'Buscando localização...';
+        });
+        await _obterLocalizacaoCompleta();
+      } else {
+        // Verificar se o GPS foi ativado
+        final gpsAtivo = await Geolocator.isLocationServiceEnabled();
+        if (!gpsAtivo) {
+          setState(() {
+            _enderecoAtual = '📍 Ative o GPS para obter localização';
+            _localizacaoDisponivel = false;
+          });
+        } else {
+          setState(() {
+            _enderecoAtual = '📍 Permissão de localização negada';
+            _localizacaoDisponivel = false;
+            _permicaoNegada = true;
+          });
+        }
+      }
+    }
   }
 
   Future<void> _inicializar() async {
@@ -118,6 +160,9 @@ class _HomePageState extends State<HomePage>
       if (lastPosition != null) {
         debugPrint('📍 [HOME] Última posição: ${lastPosition.latitude}, ${lastPosition.longitude}');
         _atualizarMapa(lastPosition);
+
+        // 🔥 BUSCAR ENDEREÇO IMEDIATAMENTE
+        await _buscarEnderecoEmBackground(lastPosition);
       }
 
       // 🔥 PASSO 3: Stream de posição
@@ -265,25 +310,14 @@ class _HomePageState extends State<HomePage>
 
   // 🔥 SOLICITAR PERMISSÃO NOVAMENTE
   Future<void> _solicitarPermissaoNovamente() async {
-    
-     // 🔥 TENTAR ABRIR CONFIGURAÇÕES DO GPS
-  try {
-    await Geolocator.openLocationSettings();
-  } catch (e) {
-    debugPrint('⚠️ [HOME] Erro ao abrir configurações: $e');
-  }
-    final disponivel = await _localizacaoService.isLocationAvailable();
-
-    if (disponivel) {
-      _buscando = false;
-      await _obterLocalizacaoCompleta();
-    } else {
-      setState(() {
-        _permicaoNegada = true;
-        _enderecoAtual = '📍 Permissão de localização negada';
-        _localizacaoDisponivel = false;
-      });
+    // 🔥 TENTAR ABRIR CONFIGURAÇÕES DO GPS
+    try {
+      await Geolocator.openLocationSettings();
+    } catch (e) {
+      debugPrint('⚠️ [HOME] Erro ao abrir configurações: $e');
     }
+    // 🔥 O didChangeAppLifecycleState vai detectar a volta
+    // e chamar _verificarPermissaoAoVoltar()
   }
 
   Future<void> _refreshLocalizacao() async {
@@ -318,7 +352,7 @@ class _HomePageState extends State<HomePage>
     });
   }
 
-  // 🔥 SELECIONAR TIPO DE PONTO (PASSANDO LOCALIZAÇÃO)
+  // 🔥 SELECIONAR TIPO DE PONTO - COM VERIFICAÇÃO DE PERMISSÃO
   Future<void> _selecionarTipoPonto(TipoPonto tipo) async {
     _toggleCard();
 
@@ -339,6 +373,21 @@ class _HomePageState extends State<HomePage>
       return;
     }
 
+    // 🔥 VERIFICAR SE A LOCALIZAÇÃO ESTÁ DISPONÍVEL
+    final disponivel = await _localizacaoService.isLocationAvailable();
+    if (!disponivel) {
+      if (currentContext.mounted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ Ative o GPS e conceda permissão para registrar o ponto!'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
     if (currentContext.mounted) {
       Navigator.push(
         currentContext,
@@ -347,10 +396,10 @@ class _HomePageState extends State<HomePage>
             tipoPonto: tipo,
             funcionarioId: usuario['id'] ?? '',
             funcionarioNome: usuario['nome'] ?? 'Funcionário',
-            // 🔥 PASSAR LOCALIZAÇÃO DA HOME
-            latitude: _localizacaoAtual?.latitude,
-            longitude: _localizacaoAtual?.longitude,
-            endereco: _enderecoAtual,
+            // 🔥 SÓ PASSAR LOCALIZAÇÃO SE ESTIVER DISPONÍVEL
+            latitude: _localizacaoDisponivel ? _localizacaoAtual?.latitude : null,
+            longitude: _localizacaoDisponivel ? _localizacaoAtual?.longitude : null,
+            endereco: _localizacaoDisponivel ? _enderecoAtual : null,
           ),
         ),
       );

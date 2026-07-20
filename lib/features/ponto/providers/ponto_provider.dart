@@ -392,58 +392,58 @@ class PontoProvider extends ChangeNotifier {
     }
   }
 
-  // 🔥 OBTER LOCALIZAÇÃO - BLOQUEIA SE NÃO TIVER LOCALIZAÇÃO
-Future<({double lat, double lng, String endereco, bool pendente})>
-_obterLocalizacao({
-  double? latitude,
-  double? longitude,
-  String? endereco,
-}) async {
-  // 🔥 PRIORIDADE 1: Localização recebida por parâmetro (da Home)
-  if (latitude != null && longitude != null && endereco != null) {
-    debugPrint('📍 [PONTO] Usando localização recebida por parâmetro');
-    return (
-      lat: latitude,
-      lng: longitude,
-      endereco: endereco,
-      pendente: false,
-    );
-  }
+  // 🔥 🔥 🔥 OBTER LOCALIZAÇÃO - VERIFICA PERMISSÃO E GPS PRIMEIRO 🔥 🔥 🔥
+  Future<({double lat, double lng, String endereco, bool pendente})>
+  _obterLocalizacao({
+    double? latitude,
+    double? longitude,
+    String? endereco,
+  }) async {
+    // 🔥 🔥 🔥 VERIFICAR PERMISSÃO ANTES DE TUDO 🔥 🔥 🔥
+    final temPermissao = await localizacaoService.isLocationAvailable();
+    if (!temPermissao) {
+      debugPrint('📍 [PONTO] PERMISSÃO NEGADA - NÃO É POSSÍVEL REGISTRAR PONTO!');
+      throw Exception('⚠️ Conceda permissão de localização para registrar o ponto!');
+    }
 
-  // 🔥 VERIFICAR SE O GPS ESTÁ ATIVO
-  final gpsAtivo = await Geolocator.isLocationServiceEnabled();
-  if (!gpsAtivo) {
-    debugPrint('📍 [PONTO] GPS DESLIGADO - NÃO É POSSÍVEL REGISTRAR PONTO!');
-    throw Exception('⚠️ Ative o GPS para registrar o ponto!');
-  }
+    // 🔥 VERIFICAR SE O GPS ESTÁ ATIVO
+    final gpsAtivo = await Geolocator.isLocationServiceEnabled();
+    if (!gpsAtivo) {
+      debugPrint('📍 [PONTO] GPS DESLIGADO - NÃO É POSSÍVEL REGISTRAR PONTO!');
+      throw Exception('⚠️ Ative o GPS para registrar o ponto!');
+    }
 
-  // 🔥 VERIFICAR PERMISSÃO
-  final temPermissao = await localizacaoService.isLocationAvailable();
-  if (!temPermissao) {
-    debugPrint('📍 [PONTO] PERMISSÃO NEGADA - NÃO É POSSÍVEL REGISTRAR PONTO!');
-    throw Exception('⚠️ Conceda permissão de localização para registrar o ponto!');
-  }
-
-  // 🔥 BUSCAR LOCALIZAÇÃO
-  try {
-    debugPrint('📍 [PONTO] Buscando localização do service...');
-    final localizacao = await localizacaoService.getLocalizacaoCompleta();
-    if (localizacao != null) {
+    // 🔥 PRIORIDADE 1: Localização recebida por parâmetro (da Home)
+    if (latitude != null && longitude != null && endereco != null) {
+      debugPrint('📍 [PONTO] Usando localização recebida por parâmetro');
       return (
-        lat: localizacao['latitude'] as double,
-        lng: localizacao['longitude'] as double,
-        endereco: localizacao['endereco'] as String,
+        lat: latitude,
+        lng: longitude,
+        endereco: endereco,
         pendente: false,
       );
     }
-  } catch (e) {
-    debugPrint('⚠️ [PONTO] Erro ao obter localização: $e');
-  }
 
-  // 🔥 SE CHEGOU AQUI, BLOQUEIA O PONTO
-  debugPrint('📍 [PONTO] NÃO FOI POSSÍVEL OBTER LOCALIZAÇÃO - PONTO BLOQUEADO!');
-  throw Exception('⚠️ Não foi possível obter sua localização. Tente novamente.');
-}
+    // 🔥 BUSCAR LOCALIZAÇÃO
+    try {
+      debugPrint('📍 [PONTO] Buscando localização do service...');
+      final localizacao = await localizacaoService.getLocalizacaoCompleta();
+      if (localizacao != null) {
+        return (
+          lat: localizacao['latitude'] as double,
+          lng: localizacao['longitude'] as double,
+          endereco: localizacao['endereco'] as String,
+          pendente: false,
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ [PONTO] Erro ao obter localização: $e');
+    }
+
+    // 🔥 SE CHEGOU AQUI, BLOQUEIA O PONTO
+    debugPrint('📍 [PONTO] NÃO FOI POSSÍVEL OBTER LOCALIZAÇÃO - PONTO BLOQUEADO!');
+    throw Exception('⚠️ Não foi possível obter sua localização. Tente novamente.');
+  }
 
   // 🔥 MÉTODO PRIVADO PARA BUSCAR REGISTROS DO PERÍODO
   Future<List<RegistroPonto>> _buscarRegistrosDoPeriodo({
