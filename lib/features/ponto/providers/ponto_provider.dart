@@ -392,7 +392,7 @@ class PontoProvider extends ChangeNotifier {
     }
   }
 
-  // 🔥 OBTER LOCALIZAÇÃO (PRIORIDADE: PARÂMETRO > LOCALIZACAO_SERVICE)
+  // 🔥 OBTER LOCALIZAÇÃO - BLOQUEIA SE NÃO TIVER LOCALIZAÇÃO
 Future<({double lat, double lng, String endereco, bool pendente})>
 _obterLocalizacao({
   double? latitude,
@@ -424,7 +424,7 @@ _obterLocalizacao({
     throw Exception('⚠️ Conceda permissão de localização para registrar o ponto!');
   }
 
-  // 🔥 PRIORIDADE 2: Buscar do LocalizacaoService
+  // 🔥 BUSCAR LOCALIZAÇÃO
   try {
     debugPrint('📍 [PONTO] Buscando localização do service...');
     final localizacao = await localizacaoService.getLocalizacaoCompleta();
@@ -437,17 +437,12 @@ _obterLocalizacao({
       );
     }
   } catch (e) {
-    debugPrint('⚠️ [PONTO] Erro ao obter localização do service: $e');
+    debugPrint('⚠️ [PONTO] Erro ao obter localização: $e');
   }
 
-  // 🔥 FALLBACK FINAL - só chega aqui se tudo falhou
-  debugPrint('⚠️ [PONTO] Nenhuma localização disponível, usando fallback');
-  return (
-    lat: -23.5505,
-    lng: -46.6333,
-    endereco: 'Localização não disponível',
-    pendente: false,
-  );
+  // 🔥 SE CHEGOU AQUI, BLOQUEIA O PONTO
+  debugPrint('📍 [PONTO] NÃO FOI POSSÍVEL OBTER LOCALIZAÇÃO - PONTO BLOQUEADO!');
+  throw Exception('⚠️ Não foi possível obter sua localização. Tente novamente.');
 }
 
   // 🔥 MÉTODO PRIVADO PARA BUSCAR REGISTROS DO PERÍODO

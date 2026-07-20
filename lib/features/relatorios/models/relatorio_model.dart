@@ -7,8 +7,9 @@ class RelatorioDiario {
   final String retornoAlmoco;
   final String saida;
   final String total;
-  final String totalPrevisto; // 🔥 NOVO
-  final String localizacao;
+  final String totalPrevisto; 
+  final String localizacaoEntrada;  
+  final String localizacaoSaida;    
 
   RelatorioDiario({
     required this.data,
@@ -20,7 +21,8 @@ class RelatorioDiario {
     required this.saida,
     required this.total,
     required this.totalPrevisto,
-    required this.localizacao,
+    required this.localizacaoEntrada,
+    required this.localizacaoSaida,
   });
 }
 

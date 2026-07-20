@@ -37,21 +37,22 @@ class ExcelExportService {
   // ============================================================
   static void _configurarPlanilha(Sheet sheet) {
     // 🔥 LARGURA DAS COLUNAS (converter para double)
-    sheet.setColumnWidth(0, 12.0);
-    sheet.setColumnWidth(1, 10.0);
-    sheet.setColumnWidth(2, 9.0);
-    sheet.setColumnWidth(3, 9.0);
-    sheet.setColumnWidth(4, 9.0);
-    sheet.setColumnWidth(5, 9.0);
-    sheet.setColumnWidth(6, 9.0);
-    sheet.setColumnWidth(7, 9.0);
-    sheet.setColumnWidth(8, 12.0);
-    sheet.setColumnWidth(9, 12.0);
-    sheet.setColumnWidth(10, 12.0);
-    sheet.setColumnWidth(11, 12.0);
-    sheet.setColumnWidth(12, 12.0);
-    sheet.setColumnWidth(13, 12.0);
-    sheet.setColumnWidth(14, 35.0);
+    sheet.setColumnWidth(0, 12.0);  // DATA
+    sheet.setColumnWidth(1, 10.0);  // EVENTO
+    sheet.setColumnWidth(2, 9.0);   // ENTRADA
+    sheet.setColumnWidth(3, 9.0);   // S.ALMOÇO
+    sheet.setColumnWidth(4, 9.0);   // TOTAL 1
+    sheet.setColumnWidth(5, 9.0);   // R.ALMOÇO
+    sheet.setColumnWidth(6, 9.0);   // SAÍDA
+    sheet.setColumnWidth(7, 9.0);   // TOTAL 2
+    sheet.setColumnWidth(8, 12.0);  // TOTAL PREVISTO
+    sheet.setColumnWidth(9, 12.0);  // TOTAL EFETIVO
+    sheet.setColumnWidth(10, 12.0); // HORAS DEVIDAS
+    sheet.setColumnWidth(11, 12.0); // HORAS EXTRAS
+    sheet.setColumnWidth(12, 12.0); // EXTRA 60%
+    sheet.setColumnWidth(13, 12.0); // EXTRA 100%
+    sheet.setColumnWidth(14, 35.0); // LOCALIZAÇÃO.E
+    sheet.setColumnWidth(15, 35.0); // LOCALIZAÇÃO.S
 
     // 🔥 ALTURA DAS LINHAS
     sheet.setRowHeight(0, 30.0);
@@ -134,11 +135,11 @@ class ExcelExportService {
     // Mesclar título
     sheet.merge(
       CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
-      CellIndex.indexByColumnRow(columnIndex: 14, rowIndex: 0),
+      CellIndex.indexByColumnRow(columnIndex: 15, rowIndex: 0), // 🔥 14 → 15
     );
     sheet.merge(
       CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
-      CellIndex.indexByColumnRow(columnIndex: 14, rowIndex: 1),
+      CellIndex.indexByColumnRow(columnIndex: 15, rowIndex: 1), // 🔥 14 → 15
     );
 
     final cell1 = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0));
@@ -256,7 +257,8 @@ class ExcelExportService {
       'HORAS EXTRAS',
       'EXTRA 60%',
       'EXTRA 100%',
-      'LOCALIZAÇÃO',
+      'LOCALIZAÇÃO.E',
+      'LOCALIZAÇÃO.S',
     ];
     final subHeaders = [
       '',
@@ -267,6 +269,7 @@ class ExcelExportService {
       'R.ALMOÇO',
       'SAÍDA',
       'TOTAL',
+      '',
       '',
       '',
       '',
@@ -355,8 +358,6 @@ class ExcelExportService {
         totalPrevistoFinal = '08:00';
       }
 
-      final localizacao = dia.localizacao;
-
       List<String> linhaDados;
 
       if (temRegistro) {
@@ -365,17 +366,18 @@ class ExcelExportService {
           dia.diaSemana,
           dia.entrada,
           dia.saidaAlmoco,
-          totalExp1Str,
+          totalExp1Str,          // 🔥 TOTAL 1
           dia.retornoAlmoco,
           dia.saida,
-          totalExp2Str,
+          totalExp2Str,          // 🔥 TOTAL 2
           totalPrevistoFinal,
-          totalEfetivoDia,
+          totalEfetivoDia,       // 🔥 TOTAL EFETIVO (TOTAL1 + TOTAL2)
           horasDevidasDia,
           horasExtrasDia,
           extra60Dia,
           extra100Dia,
-          localizacao,
+          dia.localizacaoEntrada, // 🔥 LOCALIZAÇÃO.E
+          dia.localizacaoSaida,   // 🔥 LOCALIZAÇÃO.S
         ];
       } else {
         linhaDados = [
@@ -393,7 +395,8 @@ class ExcelExportService {
           '',
           '',
           '',
-          localizacao,
+          dia.localizacaoEntrada,
+          dia.localizacaoSaida,
         ];
       }
 
@@ -442,7 +445,7 @@ class ExcelExportService {
     );
     sheet.merge(
       CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: row),
-      CellIndex.indexByColumnRow(columnIndex: 14, rowIndex: row),
+      CellIndex.indexByColumnRow(columnIndex: 15, rowIndex: row), // 🔥 14 → 15
     );
 
     final cellAssinaturaLabel = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: row));

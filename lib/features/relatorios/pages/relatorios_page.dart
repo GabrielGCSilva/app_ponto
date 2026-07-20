@@ -546,6 +546,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       ),
       DataColumn(
         label: Text(
+          'TOTAL',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
           'R.ALMOÇO',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
         ),
@@ -600,7 +606,13 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       ),
       DataColumn(
         label: Text(
-          'LOCALIZAÇÃO',
+          'LOCALIZAÇÃO.E',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'LOCALIZAÇÃO.S',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
         ),
       ),
@@ -633,6 +645,15 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       extra100Dia = dia.total;
     }
 
+    // 🔥 CALCULAR TOTAL 1 (ENTRADA → S.ALMOÇO)
+    final total1 = _calcularDiferencaEntreHorarios(dia.entrada, dia.saidaAlmoco);
+
+    // 🔥 CALCULAR TOTAL 2 (R.ALMOÇO → SAÍDA)
+    final total2 = _calcularDiferencaEntreHorarios(dia.retornoAlmoco, dia.saida);
+
+    // 🔥 TOTAL EFETIVO DO DIA (TOTAL1 + TOTAL2)
+    final totalEfetivoDia = _somarTempos(total1, total2);
+
     return DataRow(
       color: _getCorLinha(dia.evento),
       cells: [
@@ -642,22 +663,39 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         DataCell(Text(dia.evento ?? '', style: const TextStyle(fontSize: 11))),
         DataCell(Text(dia.entrada, style: const TextStyle(fontSize: 11))),
         DataCell(Text(dia.saidaAlmoco, style: const TextStyle(fontSize: 11))),
+        DataCell(
+          Text(
+            total1, // 🔥 TOTAL 1
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: total1 != '00:00' ? Colors.blue.shade700 : Colors.grey,
+            ),
+          ),
+        ),
         DataCell(Text(dia.retornoAlmoco, style: const TextStyle(fontSize: 11))),
         DataCell(Text(dia.saida, style: const TextStyle(fontSize: 11))),
         DataCell(
           Text(
-            dia.total,
+            total2, // 🔥 TOTAL 2
             style: TextStyle(
-              fontWeight: dia.total != '00:00'
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-              color: dia.total != '00:00' ? Colors.blue.shade700 : Colors.grey,
               fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: total2 != '00:00' ? Colors.blue.shade700 : Colors.grey,
             ),
           ),
         ),
         DataCell(Text(totalPrevisto, style: const TextStyle(fontSize: 11))),
-        DataCell(Text(totalEfetivo, style: const TextStyle(fontSize: 11))),
+        DataCell(
+          Text(
+            totalEfetivoDia, // 🔥 TOTAL EFETIVO
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: totalEfetivoDia != '00:00' ? Colors.green.shade700 : Colors.grey,
+            ),
+          ),
+        ),
         DataCell(
           Text(
             horasDevidasDia,
@@ -698,7 +736,17 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           Container(
             constraints: const BoxConstraints(maxWidth: 150),
             child: Text(
-              dia.localizacao,
+              dia.localizacaoEntrada,
+              style: const TextStyle(fontSize: 10),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          Container(
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Text(
+              dia.localizacaoSaida,
               style: const TextStyle(fontSize: 10),
               overflow: TextOverflow.ellipsis,
             ),
@@ -840,6 +888,28 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60);
     return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
+  }
+
+  // 🔥 CALCULAR DIFERENÇA ENTRE DOIS HORÁRIOS
+  String _calcularDiferencaEntreHorarios(String inicio, String fim) {
+    if (inicio.isEmpty || fim.isEmpty) return '00:00';
+    try {
+      final inicioDur = _stringToDuration(inicio);
+      final fimDur = _stringToDuration(fim);
+      final diff = fimDur - inicioDur;
+      if (diff.isNegative) return '00:00';
+      return _durationToString(diff);
+    } catch (e) {
+      return '00:00';
+    }
+  }
+
+  // 🔥 SOMAR DOIS TEMPOS
+  String _somarTempos(String tempo1, String tempo2) {
+    final dur1 = _stringToDuration(tempo1);
+    final dur2 = _stringToDuration(tempo2);
+    final soma = dur1 + dur2;
+    return _durationToString(soma);
   }
 
   // ============================================================

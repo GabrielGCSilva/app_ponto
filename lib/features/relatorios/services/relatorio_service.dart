@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/relatorio_model.dart';
 import '../../ponto/models/registro_ponto_model.dart';
@@ -186,16 +185,22 @@ class RelatorioService {
       // 🔥 TOTAL PREVISTO DO DIA
       final previsto = getHorarioPrevisto(diaSemana);
 
-      // 🔥 LOCALIZAÇÃO
-      String localizacao = '';
+      // 🔥 🔥 🔥 LOCALIZAÇÃO DA ENTRADA (sempre a localização da Entrada)
+      String localizacaoEntrada = '';
       if (entrada.id.isNotEmpty) {
-        localizacao = entrada.endereco;
-      } else if (saida.id.isNotEmpty) {
-        localizacao = saida.endereco;
-      } else if (saidaAlmoco.id.isNotEmpty) {
-        localizacao = saidaAlmoco.endereco;
+        localizacaoEntrada = entrada.endereco;
+      }
+
+      // 🔥 🔥 🔥 LOCALIZAÇÃO DA SAÍDA (sempre a localização da Saída ou do último ponto)
+      String localizacaoSaida = '';
+      if (saida.id.isNotEmpty) {
+        localizacaoSaida = saida.endereco;
       } else if (retornoAlmoco.id.isNotEmpty) {
-        localizacao = retornoAlmoco.endereco;
+        localizacaoSaida = retornoAlmoco.endereco;
+      } else if (saidaAlmoco.id.isNotEmpty) {
+        localizacaoSaida = saidaAlmoco.endereco;
+      } else if (entrada.id.isNotEmpty) {
+        localizacaoSaida = entrada.endereco;
       }
 
       dias.add(
@@ -213,7 +218,8 @@ class RelatorioService {
           saida: saida.id.isNotEmpty ? _formatarHora(saida.dataHora) : '',
           total: total,
           totalPrevisto: previsto,
-          localizacao: localizacao,
+          localizacaoEntrada: localizacaoEntrada,  // 🔥 NOVO
+          localizacaoSaida: localizacaoSaida,      // 🔥 NOVO
         ),
       );
     }
@@ -226,7 +232,6 @@ class RelatorioService {
   }
 
   // 🔥 CALCULAR TOTAIS
-  // 🔥 MÉTODO CORRIGIDO
   RelatorioMensal _calcularTotais(
     List<RelatorioDiario> dias,
     Map<String, dynamic> funcionario,
@@ -312,7 +317,7 @@ class RelatorioService {
     final horasMensais = Duration(hours: 220);
     final horasMensaisStr = CalculadoraHoras.durationToString(horasMensais);
 
-    // 🔥 🔥 CORREÇÃO: SUBTOTAL SÓ SE HOUVER REGISTROS
+    // 🔥 SUBTOTAL
     Duration subtotal;
     if (temRegistros) {
       final horasMensaisDur = CalculadoraHoras.stringToDuration(
@@ -330,28 +335,6 @@ class RelatorioService {
     } else {
       subtotal = Duration.zero;
     }
-
-    debugPrint('📊 ===== RELATÓRIO =====');
-    debugPrint('  Tem registros? $temRegistros');
-    debugPrint('  Total Previsto FIXO: 194:00');
-    debugPrint(
-      '  Total Efetivo: ${CalculadoraHoras.durationToString(totalEfetivo)}',
-    );
-    debugPrint('  Horas Devidas: $horasDevidas');
-    debugPrint(
-      '  Horas Extras (dias úteis): ${CalculadoraHoras.durationToString(totalHorasExtras)}',
-    );
-    debugPrint(
-      '  Horas Extras (fim de semana): ${CalculadoraHoras.durationToString(totalHorasExtrasFimSemana)}',
-    );
-    debugPrint('  Horas Extras TOTAL: $horasExtras');
-    debugPrint(
-      '  Extra 60%: ${CalculadoraHoras.durationToString(totalExtras60)}',
-    );
-    debugPrint(
-      '  Extra 100%: ${CalculadoraHoras.durationToString(totalExtras100)}',
-    );
-    debugPrint('  Subtotal: ${CalculadoraHoras.durationToString(subtotal)}');
 
     return RelatorioMensal(
       funcionarioId: funcionario['id'] ?? '',
