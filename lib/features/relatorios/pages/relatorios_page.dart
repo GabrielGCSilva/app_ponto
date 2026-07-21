@@ -528,6 +528,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       ),
       DataColumn(
         label: Text(
+          'D.SEMANA',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+      ),
+      DataColumn(
+        label: Text(
           'EVENTO',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
         ),
@@ -659,6 +665,16 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       cells: [
         DataCell(
           Text(_formatarData(dia.data), style: const TextStyle(fontSize: 11)),
+        ),
+        DataCell(
+          Text(
+            dia.diaSemana, // 🔥 CORRIGIDO: usa dia.diaSemana (já tem a abreviação correta)
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: dia.evento == 'FOLGA' ? FontWeight.bold : FontWeight.normal,
+              color: dia.evento == 'FOLGA' ? Colors.green : Colors.black,
+            ),
+          ),
         ),
         DataCell(Text(dia.evento ?? '', style: const TextStyle(fontSize: 11))),
         DataCell(Text(dia.entrada, style: const TextStyle(fontSize: 11))),

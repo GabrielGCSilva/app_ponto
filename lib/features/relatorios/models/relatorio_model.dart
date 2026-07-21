@@ -9,7 +9,7 @@ class RelatorioDiario {
   final String total;
   final String totalPrevisto; 
   final String localizacaoEntrada;  
-  final String localizacaoSaida;    
+  final String localizacaoSaida;
 
   RelatorioDiario({
     required this.data,
@@ -24,6 +24,23 @@ class RelatorioDiario {
     required this.localizacaoEntrada,
     required this.localizacaoSaida,
   });
+
+  // 🔥 Nome completo do dia da semana
+  String get nomeDiaSemana {
+    const dias = [
+      'Domingo', 'Segunda', 'Terça', 'Quarta',
+      'Quinta', 'Sexta', 'Sábado'
+    ];
+    return dias[data.weekday - 1];
+  }
+
+  // 🔥 Abreviação do dia da semana (3 letras)
+  String get diaSemanaAbreviado {
+    const dias = [
+      'Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'
+    ];
+    return dias[data.weekday - 1];
+  }
 }
 
 class RelatorioMensal {
