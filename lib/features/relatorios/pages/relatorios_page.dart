@@ -627,150 +627,157 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
 
   // 📝 LINHA DA TABELA
   DataRow _buildLinhaTabela(RelatorioDiario dia) {
-    final totalPrevisto = dia.totalPrevisto;
-    final totalEfetivo = dia.total;
-    final diff = _calcularDiferenca(totalEfetivo, totalPrevisto);
+  final totalPrevisto = dia.totalPrevisto;
+  final totalEfetivo = dia.total;
+  final diff = _calcularDiferenca(totalEfetivo, totalPrevisto);
 
-    String horasDevidasDia = '00:00';
-    String horasExtrasDia = '00:00';
+  String horasDevidasDia = '00:00';
+  String horasExtrasDia = '00:00';
 
-    if (diff.isNegative) {
-      horasDevidasDia = _durationToString(diff.abs());
-    } else if (diff > Duration.zero) {
-      horasExtrasDia = _durationToString(diff);
-    }
-
-    String extra60Dia = '00:00';
-    String extra100Dia = '00:00';
-
-    if (dia.diaSemana == 'Sáb') {
-      final total = _stringToDuration(dia.total);
-      final extra60 = (total.inMinutes * 0.6).round();
-      extra60Dia = _durationToString(Duration(minutes: extra60));
-    } else if (dia.diaSemana == 'Dom') {
-      extra100Dia = dia.total;
-    }
-
-    // 🔥 CALCULAR TOTAL 1 (ENTRADA → S.ALMOÇO)
-    final total1 = _calcularDiferencaEntreHorarios(dia.entrada, dia.saidaAlmoco);
-
-    // 🔥 CALCULAR TOTAL 2 (R.ALMOÇO → SAÍDA)
-    final total2 = _calcularDiferencaEntreHorarios(dia.retornoAlmoco, dia.saida);
-
-    // 🔥 TOTAL EFETIVO DO DIA (TOTAL1 + TOTAL2)
-    final totalEfetivoDia = _somarTempos(total1, total2);
-
-    return DataRow(
-      color: _getCorLinha(dia.evento),
-      cells: [
-        DataCell(
-          Text(_formatarData(dia.data), style: const TextStyle(fontSize: 11)),
-        ),
-        DataCell(
-          Text(
-            dia.diaSemana, // 🔥 CORRIGIDO: usa dia.diaSemana (já tem a abreviação correta)
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: dia.evento == 'FOLGA' ? FontWeight.bold : FontWeight.normal,
-              color: dia.evento == 'FOLGA' ? Colors.green : Colors.black,
-            ),
-          ),
-        ),
-        DataCell(Text(dia.evento ?? '', style: const TextStyle(fontSize: 11))),
-        DataCell(Text(dia.entrada, style: const TextStyle(fontSize: 11))),
-        DataCell(Text(dia.saidaAlmoco, style: const TextStyle(fontSize: 11))),
-        DataCell(
-          Text(
-            total1, // 🔥 TOTAL 1
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: total1 != '00:00' ? Colors.blue.shade700 : Colors.grey,
-            ),
-          ),
-        ),
-        DataCell(Text(dia.retornoAlmoco, style: const TextStyle(fontSize: 11))),
-        DataCell(Text(dia.saida, style: const TextStyle(fontSize: 11))),
-        DataCell(
-          Text(
-            total2, // 🔥 TOTAL 2
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: total2 != '00:00' ? Colors.blue.shade700 : Colors.grey,
-            ),
-          ),
-        ),
-        DataCell(Text(totalPrevisto, style: const TextStyle(fontSize: 11))),
-        DataCell(
-          Text(
-            totalEfetivoDia, // 🔥 TOTAL EFETIVO
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: totalEfetivoDia != '00:00' ? Colors.green.shade700 : Colors.grey,
-            ),
-          ),
-        ),
-        DataCell(
-          Text(
-            horasDevidasDia,
-            style: TextStyle(
-              fontSize: 11,
-              color: horasDevidasDia != '00:00' ? Colors.red : Colors.grey,
-            ),
-          ),
-        ),
-        DataCell(
-          Text(
-            horasExtrasDia,
-            style: TextStyle(
-              fontSize: 11,
-              color: horasExtrasDia != '00:00' ? Colors.green : Colors.grey,
-            ),
-          ),
-        ),
-        DataCell(
-          Text(
-            extra60Dia,
-            style: TextStyle(
-              fontSize: 11,
-              color: extra60Dia != '00:00' ? Colors.orange : Colors.grey,
-            ),
-          ),
-        ),
-        DataCell(
-          Text(
-            extra100Dia,
-            style: TextStyle(
-              fontSize: 11,
-              color: extra100Dia != '00:00' ? Colors.purple : Colors.grey,
-            ),
-          ),
-        ),
-        DataCell(
-          Container(
-            constraints: const BoxConstraints(maxWidth: 150),
-            child: Text(
-              dia.localizacaoEntrada,
-              style: const TextStyle(fontSize: 10),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-        DataCell(
-          Container(
-            constraints: const BoxConstraints(maxWidth: 150),
-            child: Text(
-              dia.localizacaoSaida,
-              style: const TextStyle(fontSize: 10),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-      ],
-    );
+  if (diff.isNegative) {
+    horasDevidasDia = _durationToString(diff.abs());
+  } else if (diff > Duration.zero) {
+    horasExtrasDia = _durationToString(diff);
   }
+
+  String extra60Dia = '00:00';
+  String extra100Dia = '00:00';
+
+  // 🔥 🔥 🔥 CORREÇÃO: EXTRA 60% = HORAS EXTRAS * 0.6 (Segunda a Sábado)
+  if (dia.diaSemana == 'Dom') {
+    // 🔥 EXTRA 100% = HORAS EXTRAS (Domingo)
+    if (horasExtrasDia != '00:00') {
+      extra100Dia = horasExtrasDia;
+    }
+  } else {
+    // 🔥 EXTRA 60% = HORAS EXTRAS * 0.6 (Segunda a Sábado)
+    if (horasExtrasDia != '00:00') {
+      final horasExtrasDur = _stringToDuration(horasExtrasDia);
+      final extra60 = (horasExtrasDur.inMinutes * 0.6).round();
+      extra60Dia = _durationToString(Duration(minutes: extra60));
+    }
+  }
+
+  // 🔥 CALCULAR TOTAL 1 (ENTRADA → S.ALMOÇO)
+  final total1 = _calcularDiferencaEntreHorarios(dia.entrada, dia.saidaAlmoco);
+
+  // 🔥 CALCULAR TOTAL 2 (R.ALMOÇO → SAÍDA)
+  final total2 = _calcularDiferencaEntreHorarios(dia.retornoAlmoco, dia.saida);
+
+  // 🔥 TOTAL EFETIVO DO DIA (TOTAL1 + TOTAL2)
+  final totalEfetivoDia = _somarTempos(total1, total2);
+
+  return DataRow(
+    color: _getCorLinha(dia.evento),
+    cells: [
+      DataCell(
+        Text(_formatarData(dia.data), style: const TextStyle(fontSize: 11)),
+      ),
+      DataCell(
+        Text(
+          dia.diaSemana,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: dia.evento == 'FOLGA' ? FontWeight.bold : FontWeight.normal,
+            color: dia.evento == 'FOLGA' ? Colors.green : Colors.black,
+          ),
+        ),
+      ),
+      DataCell(Text(dia.evento ?? '', style: const TextStyle(fontSize: 11))),
+      DataCell(Text(dia.entrada, style: const TextStyle(fontSize: 11))),
+      DataCell(Text(dia.saidaAlmoco, style: const TextStyle(fontSize: 11))),
+      DataCell(
+        Text(
+          total1,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: total1 != '00:00' ? Colors.blue.shade700 : Colors.grey,
+          ),
+        ),
+      ),
+      DataCell(Text(dia.retornoAlmoco, style: const TextStyle(fontSize: 11))),
+      DataCell(Text(dia.saida, style: const TextStyle(fontSize: 11))),
+      DataCell(
+        Text(
+          total2,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: total2 != '00:00' ? Colors.blue.shade700 : Colors.grey,
+          ),
+        ),
+      ),
+      DataCell(Text(totalPrevisto, style: const TextStyle(fontSize: 11))),
+      DataCell(
+        Text(
+          totalEfetivoDia,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: totalEfetivoDia != '00:00' ? Colors.green.shade700 : Colors.grey,
+          ),
+        ),
+      ),
+      DataCell(
+        Text(
+          horasDevidasDia,
+          style: TextStyle(
+            fontSize: 11,
+            color: horasDevidasDia != '00:00' ? Colors.red : Colors.grey,
+          ),
+        ),
+      ),
+      DataCell(
+        Text(
+          horasExtrasDia,
+          style: TextStyle(
+            fontSize: 11,
+            color: horasExtrasDia != '00:00' ? Colors.green : Colors.grey,
+          ),
+        ),
+      ),
+      DataCell(
+        Text(
+          extra60Dia,
+          style: TextStyle(
+            fontSize: 11,
+            color: extra60Dia != '00:00' ? Colors.orange : Colors.grey,
+          ),
+        ),
+      ),
+      DataCell(
+        Text(
+          extra100Dia,
+          style: TextStyle(
+            fontSize: 11,
+            color: extra100Dia != '00:00' ? Colors.purple : Colors.grey,
+          ),
+        ),
+      ),
+      DataCell(
+        Container(
+          constraints: const BoxConstraints(maxWidth: 150),
+          child: Text(
+            dia.localizacaoEntrada,
+            style: const TextStyle(fontSize: 10),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+      DataCell(
+        Container(
+          constraints: const BoxConstraints(maxWidth: 150),
+          child: Text(
+            dia.localizacaoSaida,
+            style: const TextStyle(fontSize: 10),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+    ],
+  );
+}
 
   // 🎨 COR DA LINHA
   WidgetStateProperty<Color?> _getCorLinha(String? evento) {

@@ -5,7 +5,6 @@ import '../../ponto/models/registro_ponto_model.dart';
 class RelatorioService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 🔥 Dias da semana
   final Map<int, String> diasSemana = {
     1: 'Seg',
     2: 'Ter',
@@ -16,14 +15,12 @@ class RelatorioService {
     7: 'Dom',
   };
 
-  // 🔥 Horário previsto por dia
   String getHorarioPrevisto(int diaSemana) {
-    if (diaSemana == 5) return '08:00'; // Sexta
-    if (diaSemana == 6 || diaSemana == 7) return '00:00'; // Sáb/Dom
-    return '09:00'; // Seg-Qui
+    if (diaSemana == 5) return '08:00';
+    if (diaSemana == 6 || diaSemana == 7) return '00:00';
+    return '09:00';
   }
 
-  // 🔥 Gerar relatório mensal
   Future<RelatorioMensal> gerarRelatorioMensal({
     required String funcionarioId,
     required int mes,
@@ -35,7 +32,6 @@ class RelatorioService {
     return _calcularTotais(dias, funcionario, mes, ano);
   }
 
-  // 🔥 BUSCAR REGISTROS DO FUNCIONÁRIO
   Future<List<RegistroPonto>> _buscarRegistros(
     String funcionarioId,
     int mes,
@@ -56,7 +52,6 @@ class RelatorioService {
     }).toList();
   }
 
-  // 🔥 BUSCAR DADOS DO FUNCIONÁRIO
   Future<Map<String, dynamic>> _buscarFuncionario(String funcionarioId) async {
     final doc = await _firestore
         .collection('funcionarios')
@@ -65,7 +60,6 @@ class RelatorioService {
     return doc.data() ?? {};
   }
 
-  // 🔥 GERAR DIAS DO RELATÓRIO
   Future<List<RelatorioDiario>> _gerarDiasRelatorio(
     List<RegistroPonto> registros,
     int mes,
@@ -87,7 +81,6 @@ class RelatorioService {
           )
           .toList();
 
-      // 🔥 BUSCAR OS 4 TIPOS DE REGISTRO
       final entrada = registrosDia.firstWhere(
         (r) => r.tipo == TipoPonto.entrada,
         orElse: () => RegistroPonto(
@@ -148,18 +141,15 @@ class RelatorioService {
         ),
       );
 
-      // 🔥 Verificar se é FALTA
       String? evento;
       if (entrada.id.isEmpty && diaSemana != 6 && diaSemana != 7) {
         evento = 'FALTA';
       }
 
-      // 🔥 Verificar se é FOLGA
       if (diaSemana == 6 || diaSemana == 7) {
         evento = 'FOLGA';
       }
 
-      // 🔥 CALCULAR TOTAL DO DIA
       Duration totalDuration = Duration.zero;
       String total = '00:00';
 
@@ -182,16 +172,13 @@ class RelatorioService {
             '${horas.toString().padLeft(2, '0')}:${minutos.toString().padLeft(2, '0')}';
       }
 
-      // 🔥 TOTAL PREVISTO DO DIA
       final previsto = getHorarioPrevisto(diaSemana);
 
-      // 🔥 🔥 🔥 LOCALIZAÇÃO DA ENTRADA (sempre a localização da Entrada)
       String localizacaoEntrada = '';
       if (entrada.id.isNotEmpty) {
         localizacaoEntrada = entrada.endereco;
       }
 
-      // 🔥 🔥 🔥 LOCALIZAÇÃO DA SAÍDA (sempre a localização da Saída ou do último ponto)
       String localizacaoSaida = '';
       if (saida.id.isNotEmpty) {
         localizacaoSaida = saida.endereco;
@@ -218,8 +205,8 @@ class RelatorioService {
           saida: saida.id.isNotEmpty ? _formatarHora(saida.dataHora) : '',
           total: total,
           totalPrevisto: previsto,
-          localizacaoEntrada: localizacaoEntrada,  // 🔥 NOVO
-          localizacaoSaida: localizacaoSaida,      // 🔥 NOVO
+          localizacaoEntrada: localizacaoEntrada,
+          localizacaoSaida: localizacaoSaida,
         ),
       );
     }
@@ -231,14 +218,12 @@ class RelatorioService {
     return '${data.hour.toString().padLeft(2, '0')}:${data.minute.toString().padLeft(2, '0')}';
   }
 
-  // 🔥 CALCULAR TOTAIS
   RelatorioMensal _calcularTotais(
     List<RelatorioDiario> dias,
     Map<String, dynamic> funcionario,
     int mes,
     int ano,
   ) {
-    // 🔥 VERIFICAR SE HÁ REGISTROS
     final temRegistros = dias.any(
       (dia) =>
           dia.entrada.isNotEmpty ||
@@ -247,7 +232,6 @@ class RelatorioService {
           dia.retornoAlmoco.isNotEmpty,
     );
 
-    // 🔥 TOTAL PREVISTO FIXO = 194:00
     final totalPrevistoFixo = CalculadoraHoras.stringToDuration('194:00');
 
     Duration totalEfetivo = Duration.zero;
@@ -279,45 +263,43 @@ class RelatorioService {
         }
       }
 
-      // 🔥 SÓ CALCULAR PARA DIAS QUE JÁ PASSARAM
       final hoje = DateTime.now();
       final dataDia = dia.data;
       if (dataDia.isBefore(hoje) || dataDia.isAtSameMomentAs(hoje)) {
+        Duration diffDia = Duration.zero;
         if (dia.diaSemana != 'Sáb' && dia.diaSemana != 'Dom') {
-          final diffDia = efetivo - previsto;
+          diffDia = efetivo - previsto;
           if (diffDia > Duration.zero) {
             totalHorasExtras += diffDia;
           }
         }
 
-        if (dia.diaSemana == 'Sáb') {
-          final extra60 = (efetivo.inMinutes * 0.6).round();
+        // 🔥 EXTRA 60% = HORAS EXTRAS * 0.6 (Segunda a Sábado)
+        if (diffDia > Duration.zero) {
+          final extra60 = (diffDia.inMinutes * 0.6).round();
           totalExtras60 += Duration(minutes: extra60);
-          totalHorasExtrasFimSemana += efetivo;
-        } else if (dia.diaSemana == 'Dom') {
+        }
+
+        // 🔥 EXTRA 100% = HORAS EXTRAS * 1.0 (Domingo)
+        if (dia.diaSemana == 'Dom' && efetivo > Duration.zero) {
           totalExtras100 += efetivo;
-          totalHorasExtrasFimSemana += efetivo;
         }
 
         totalEfetivo += efetivo;
       }
     }
 
-    // 🔥 HORAS DEVIDAS
     final totalHorasDevidas = totalPrevistoFixo - totalEfetivo;
     final horasDevidas = totalHorasDevidas.isNegative
         ? '00:00'
         : CalculadoraHoras.durationToString(totalHorasDevidas);
 
-    // 🔥 HORAS EXTRAS
     final totalExtrasTotal = totalHorasExtras + totalHorasExtrasFimSemana;
     final horasExtras = CalculadoraHoras.durationToString(totalExtrasTotal);
 
-    // 🔥 HORAS MENSAIS
     final horasMensais = Duration(hours: 220);
     final horasMensaisStr = CalculadoraHoras.durationToString(horasMensais);
 
-    // 🔥 SUBTOTAL
     Duration subtotal;
     if (temRegistros) {
       final horasMensaisDur = CalculadoraHoras.stringToDuration(

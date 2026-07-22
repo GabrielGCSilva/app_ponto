@@ -368,12 +368,20 @@ static CellStyle _estiloFolga() {
       String extra60Dia = '00:00';
       String extra100Dia = '00:00';
 
-      if (dia.diaSemana == 'Sáb') {
-        final total = _stringToDuration(totalEfetivoDia);
-        final extra60 = (total.inMinutes * 0.6).round();
-        extra60Dia = _durationToString(Duration(minutes: extra60));
-      } else if (dia.diaSemana == 'Dom') {
-        extra100Dia = totalEfetivoDia;
+      // 🔥 🔥 🔥 CORREÇÃO: EXTRA 60% = HORAS EXTRAS * 0.6 (Segunda a Sábado)
+      // 🔥 EXTRA 100% = HORAS EXTRAS (Domingo)
+      if (dia.diaSemana == 'Dom') {
+        // 🔥 EXTRA 100% = HORAS EXTRAS (Domingo)
+        if (horasExtrasDia != '00:00') {
+          extra100Dia = horasExtrasDia;
+        }
+      } else {
+        // 🔥 EXTRA 60% = HORAS EXTRAS * 0.6 (Segunda a Sábado)
+        if (horasExtrasDia != '00:00') {
+          final horasExtrasDur = _stringToDuration(horasExtrasDia);
+          final extra60 = (horasExtrasDur.inMinutes * 0.6).round();
+          extra60Dia = _durationToString(Duration(minutes: extra60));
+        }
       }
 
       String totalPrevistoFinal = dia.totalPrevisto;
@@ -389,7 +397,7 @@ static CellStyle _estiloFolga() {
       if (temRegistro) {
         linhaDados = [
           dataStr,
-          diaSemanaAbreviado, 
+          diaSemanaAbreviado,
           dia.evento ?? '',
           dia.entrada,
           dia.saidaAlmoco,
@@ -409,7 +417,7 @@ static CellStyle _estiloFolga() {
       } else {
         linhaDados = [
           dataStr,
-          diaSemanaAbreviado, // 🔥 D.SEMANA
+          diaSemanaAbreviado,
           dia.evento ?? '',
           '',
           '',
@@ -433,35 +441,35 @@ static CellStyle _estiloFolga() {
         if (linhaDados[col].isNotEmpty) {
           cell.value = TextCellValue(linhaDados[col]);
         }
-        //  APLICAR CORES POR EVENTO
+        // 🔥 APLICAR CORES POR EVENTO
         if (dia.evento == 'FALTA') {
           cell.cellStyle = _estiloFalta();
         } else if (dia.evento == 'FOLGA') {
           cell.cellStyle = _estiloFolga();
         } else {
-        //  DESTAQUES
-        if (col == 5 || col == 8) {
-          // Colunas TOTAL
-          cell.cellStyle = _estiloDadosNegrito();
-        } else if (col == 10 && linhaDados[10].isNotEmpty && linhaDados[10] != '00:00') {
-          // TOTAL EFETIVO
-          cell.cellStyle = _estiloDadosNegrito();
-        } else if (col == 11 && linhaDados[11].isNotEmpty && linhaDados[11] != '00:00') {
-          // HORAS DEVIDAS
-          cell.cellStyle = _estiloDadosNegrito();
-        } else if (col == 12 && linhaDados[12].isNotEmpty && linhaDados[12] != '00:00') {
-          // HORAS EXTRAS
-          cell.cellStyle = _estiloDadosNegrito();
-        } else if (col == 13 && linhaDados[13].isNotEmpty && linhaDados[13] != '00:00') {
-          // EXTRA 60%
-          cell.cellStyle = _estiloDadosNegrito();
-        } else if (col == 14 && linhaDados[14].isNotEmpty && linhaDados[14] != '00:00') {
-          // EXTRA 100%
-          cell.cellStyle = _estiloDadosNegrito();
-        } else {
-          cell.cellStyle = _estiloDados();
+          // 🔥 DESTAQUES
+          if (col == 5 || col == 8) {
+            // Colunas TOTAL
+            cell.cellStyle = _estiloDadosNegrito();
+          } else if (col == 10 && linhaDados[10].isNotEmpty && linhaDados[10] != '00:00') {
+            // TOTAL EFETIVO
+            cell.cellStyle = _estiloDadosNegrito();
+          } else if (col == 11 && linhaDados[11].isNotEmpty && linhaDados[11] != '00:00') {
+            // HORAS DEVIDAS
+            cell.cellStyle = _estiloDadosNegrito();
+          } else if (col == 12 && linhaDados[12].isNotEmpty && linhaDados[12] != '00:00') {
+            // HORAS EXTRAS
+            cell.cellStyle = _estiloDadosNegrito();
+          } else if (col == 13 && linhaDados[13].isNotEmpty && linhaDados[13] != '00:00') {
+            // EXTRA 60%
+            cell.cellStyle = _estiloDadosNegrito();
+          } else if (col == 14 && linhaDados[14].isNotEmpty && linhaDados[14] != '00:00') {
+            // EXTRA 100%
+            cell.cellStyle = _estiloDadosNegrito();
+          } else {
+            cell.cellStyle = _estiloDados();
+          }
         }
-      }
       }
       rowIndex++;
     }
