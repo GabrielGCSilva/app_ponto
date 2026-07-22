@@ -9,22 +9,11 @@ class ExcelExportService {
     final excel = Excel.createExcel();
     final sheet = excel['Espelho de Ponto'];
 
-    // 🔥 ===== CONFIGURAÇÕES GERAIS =====
     _configurarPlanilha(sheet);
-
-    // 🔥 ===== TÍTULO =====
     _adicionarTitulo(sheet);
-
-    // 🔥 ===== MÊS E FUNCIONÁRIO =====
     _adicionarCabecalhoInfo(sheet, relatorio);
-
-    // 🔥 ===== TOTAIS =====
     _adicionarTotais(sheet, relatorio);
-
-    // 🔥 ===== TABELA =====
     _adicionarTabela(sheet, relatorio);
-
-    // 🔥 ===== RODAPÉ =====
     _adicionarRodape(sheet, relatorio);
 
     final List<int>? encoded = excel.encode();
@@ -36,26 +25,24 @@ class ExcelExportService {
   // 🔥 CONFIGURAÇÕES DA PLANILHA
   // ============================================================
   static void _configurarPlanilha(Sheet sheet) {
-    // 🔥 LARGURA DAS COLUNAS (converter para double)
-    sheet.setColumnWidth(0, 12.0);  // DATA
-    sheet.setColumnWidth(1, 10.0);  // D.SEMANA
-    sheet.setColumnWidth(2, 10.0);  // EVENTO
-    sheet.setColumnWidth(3, 9.0);   // ENTRADA
-    sheet.setColumnWidth(4, 9.0);   // S.ALMOÇO
-    sheet.setColumnWidth(5, 9.0);   // TOTAL 1
-    sheet.setColumnWidth(6, 9.0);   // R.ALMOÇO
-    sheet.setColumnWidth(7, 9.0);   // SAÍDA
-    sheet.setColumnWidth(8, 9.0);   // TOTAL 2
-    sheet.setColumnWidth(9, 12.0);  // TOTAL PREVISTO
-    sheet.setColumnWidth(10, 12.0); // TOTAL EFETIVO
-    sheet.setColumnWidth(11, 12.0); // HORAS DEVIDAS
-    sheet.setColumnWidth(12, 12.0); // HORAS EXTRAS
-    sheet.setColumnWidth(13, 12.0); // EXTRA 60%
-    sheet.setColumnWidth(14, 12.0); // EXTRA 100%
-    sheet.setColumnWidth(15, 35.0); // LOCALIZAÇÃO.E
-    sheet.setColumnWidth(16, 35.0); // LOCALIZAÇÃO.S
+    sheet.setColumnWidth(0, 12.0);
+    sheet.setColumnWidth(1, 10.0);
+    sheet.setColumnWidth(2, 10.0);
+    sheet.setColumnWidth(3, 9.0);
+    sheet.setColumnWidth(4, 9.0);
+    sheet.setColumnWidth(5, 9.0);
+    sheet.setColumnWidth(6, 9.0);
+    sheet.setColumnWidth(7, 9.0);
+    sheet.setColumnWidth(8, 9.0);
+    sheet.setColumnWidth(9, 12.0);
+    sheet.setColumnWidth(10, 12.0);
+    sheet.setColumnWidth(11, 12.0);
+    sheet.setColumnWidth(12, 12.0);
+    sheet.setColumnWidth(13, 12.0);
+    sheet.setColumnWidth(14, 12.0);
+    sheet.setColumnWidth(15, 35.0);
+    sheet.setColumnWidth(16, 35.0);
 
-    // 🔥 ALTURA DAS LINHAS
     sheet.setRowHeight(0, 30.0);
     sheet.setRowHeight(1, 30.0);
     sheet.setRowHeight(16, 24.0);
@@ -67,7 +54,7 @@ class ExcelExportService {
   }
 
   // ============================================================
-  // 🔥 ESTILOS (sem bordas para evitar erros)
+  // 🔥 ESTILOS
   // ============================================================
   static CellStyle _estiloTitulo() {
     return CellStyle(
@@ -130,30 +117,40 @@ class ExcelExportService {
   }
 
   static CellStyle _estiloFalta() {
-  return CellStyle(
-    fontSize: 10,
-    fontFamily: getFontFamily(FontFamily.Calibri),
-    horizontalAlign: HorizontalAlign.Center,
-    verticalAlign: VerticalAlign.Center,
-    backgroundColorHex: ExcelColor.red50,
-  );
-}
+    return CellStyle(
+      fontSize: 10,
+      fontFamily: getFontFamily(FontFamily.Calibri),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      backgroundColorHex: ExcelColor.red50,
+    );
+  }
 
-static CellStyle _estiloFolga() {
-  return CellStyle(
-    fontSize: 10,
-    fontFamily: getFontFamily(FontFamily.Calibri),
-    horizontalAlign: HorizontalAlign.Center,
-    verticalAlign: VerticalAlign.Center,
-    backgroundColorHex: ExcelColor.green50,
-  );
-}
+  static CellStyle _estiloFolga() {
+    return CellStyle(
+      fontSize: 10,
+      fontFamily: getFontFamily(FontFamily.Calibri),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      backgroundColorHex: ExcelColor.green50,
+    );
+  }
+
+  // 🔥 NOVO ESTILO PARA FERIADO (AMARELO)
+  static CellStyle _estiloFeriado() {
+    return CellStyle(
+      fontSize: 10,
+      fontFamily: getFontFamily(FontFamily.Calibri),
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      backgroundColorHex: ExcelColor.fromHexString('#FFF9C4'), // Amarelo clarinho
+    );
+  }
 
   // ============================================================
   // 🔥 TÍTULO
   // ============================================================
   static void _adicionarTitulo(Sheet sheet) {
-    // Mesclar título
     sheet.merge(
       CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
       CellIndex.indexByColumnRow(columnIndex: 16, rowIndex: 0),
@@ -179,7 +176,6 @@ static CellStyle _estiloFolga() {
     final mesNome = _nomeMes(relatorio.mes);
     final row = 3;
 
-    // Linha "MÊS" e "FUNCIONÁRIO"
     final cellMesLabel = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row));
     cellMesLabel.value = TextCellValue('MÊS');
     cellMesLabel.cellStyle = _estiloDadosNegrito();
@@ -196,7 +192,6 @@ static CellStyle _estiloFolga() {
     cellFuncValor.value = TextCellValue(relatorio.funcionarioNome);
     cellFuncValor.cellStyle = _estiloDados();
 
-    // Linha "CARGO"
     final rowCargo = row + 3;
     final cellCargoLabel = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowCargo));
     cellCargoLabel.value = TextCellValue('CARGO');
@@ -206,7 +201,6 @@ static CellStyle _estiloFolga() {
     cellCargoValor.value = TextCellValue(relatorio.cargo);
     cellCargoValor.cellStyle = _estiloDados();
 
-    // Mesclagens
     sheet.merge(
       CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row),
       CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row),
@@ -305,7 +299,6 @@ static CellStyle _estiloFolga() {
     final headerRow = 16;
     final subHeaderRow = 17;
 
-    // 🔥 ADICIONAR LINHAS DE CABEÇALHO
     for (int col = 0; col < headers.length; col++) {
       final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: headerRow));
       cell.value = TextCellValue(headers[col]);
@@ -320,7 +313,6 @@ static CellStyle _estiloFolga() {
       cell.cellStyle = _estiloCabecalho();
     }
 
-    // 🔥 MESCLAR CABEÇALHOS
     sheet.merge(
       CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: headerRow),
       CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: headerRow),
@@ -330,14 +322,12 @@ static CellStyle _estiloFolga() {
       CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: headerRow),
     );
 
-    // 🔥 ADICIONAR DADOS
     int rowIndex = subHeaderRow + 1;
 
     for (var dia in relatorio.dias) {
       final dataStr = DateFormat('dd MMM').format(dia.data).toLowerCase();
       final temRegistro = dia.entrada.isNotEmpty || dia.saida.isNotEmpty;
 
-      // 🔥 CÁLCULOS
       Duration totalExp1 = Duration.zero;
       if (dia.entrada.isNotEmpty && dia.saidaAlmoco.isNotEmpty) {
         totalExp1 = _stringToDuration(dia.saidaAlmoco) - _stringToDuration(dia.entrada);
@@ -368,10 +358,10 @@ static CellStyle _estiloFolga() {
       String extra60Dia = '00:00';
       String extra100Dia = '00:00';
 
-      // 🔥 🔥 🔥 CORREÇÃO: EXTRA 60% = HORAS EXTRAS * 0.6 (Segunda a Sábado)
-      // 🔥 EXTRA 100% = HORAS EXTRAS (Domingo)
-      if (dia.diaSemana == 'Dom') {
-        // 🔥 EXTRA 100% = HORAS EXTRAS (Domingo)
+      // 🔥 EXTRA 60% = HORAS EXTRAS * 0.6 (Segunda a Sábado)
+      // 🔥 EXTRA 100% = HORAS EXTRAS (Domingo ou Feriado)
+      if (dia.isFeriado || dia.diaSemana == 'Dom') {
+        // 🔥 EXTRA 100% para FERIADO e DOMINGO
         if (horasExtrasDia != '00:00') {
           extra100Dia = horasExtrasDia;
         }
@@ -390,8 +380,6 @@ static CellStyle _estiloFolga() {
       }
 
       List<String> linhaDados;
-
-      // D.SEMANA abreviado
       final diaSemanaAbreviado = dia.diaSemana.substring(0, 3);
 
       if (temRegistro) {
@@ -441,30 +429,26 @@ static CellStyle _estiloFolga() {
         if (linhaDados[col].isNotEmpty) {
           cell.value = TextCellValue(linhaDados[col]);
         }
+
         // 🔥 APLICAR CORES POR EVENTO
         if (dia.evento == 'FALTA') {
           cell.cellStyle = _estiloFalta();
         } else if (dia.evento == 'FOLGA') {
           cell.cellStyle = _estiloFolga();
+        } else if (dia.evento == 'FERIADO') {
+          cell.cellStyle = _estiloFeriado(); // 🔥 AMARELO
         } else {
-          // 🔥 DESTAQUES
           if (col == 5 || col == 8) {
-            // Colunas TOTAL
             cell.cellStyle = _estiloDadosNegrito();
           } else if (col == 10 && linhaDados[10].isNotEmpty && linhaDados[10] != '00:00') {
-            // TOTAL EFETIVO
             cell.cellStyle = _estiloDadosNegrito();
           } else if (col == 11 && linhaDados[11].isNotEmpty && linhaDados[11] != '00:00') {
-            // HORAS DEVIDAS
             cell.cellStyle = _estiloDadosNegrito();
           } else if (col == 12 && linhaDados[12].isNotEmpty && linhaDados[12] != '00:00') {
-            // HORAS EXTRAS
             cell.cellStyle = _estiloDadosNegrito();
           } else if (col == 13 && linhaDados[13].isNotEmpty && linhaDados[13] != '00:00') {
-            // EXTRA 60%
             cell.cellStyle = _estiloDadosNegrito();
           } else if (col == 14 && linhaDados[14].isNotEmpty && linhaDados[14] != '00:00') {
-            // EXTRA 100%
             cell.cellStyle = _estiloDadosNegrito();
           } else {
             cell.cellStyle = _estiloDados();
@@ -502,7 +486,6 @@ static CellStyle _estiloFolga() {
     cellAssinaturaNome.value = TextCellValue(relatorio.funcionarioNome);
     cellAssinaturaNome.cellStyle = _estiloAssinatura();
 
-    // Data
     final cellData = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: row));
     cellData.value = TextCellValue('/    /');
     cellData.cellStyle = _estiloAssinatura();
@@ -511,7 +494,6 @@ static CellStyle _estiloFolga() {
   // ============================================================
   // 🔥 HELPERS
   // ============================================================
-
   static String _somarTempos(String tempo1, String tempo2) {
     final dur1 = _stringToDuration(tempo1);
     final dur2 = _stringToDuration(tempo2);

@@ -1,5 +1,7 @@
+// lib/features/relatorios/services/relatorio_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/relatorio_model.dart';
+import 'package:app_ponto/features/relatorios/services/feriados_service.dart';
 import '../../ponto/models/registro_ponto_model.dart';
 
 class RelatorioService {
@@ -141,12 +143,15 @@ class RelatorioService {
         ),
       );
 
-      String? evento;
-      if (entrada.id.isEmpty && diaSemana != 6 && diaSemana != 7) {
-        evento = 'FALTA';
-      }
+      final isFeriado = FeriadosService.isFeriado(data);
+      final nomeFeriado = isFeriado ? FeriadosService.getNomeFeriado(data) : null;
 
-      if (diaSemana == 6 || diaSemana == 7) {
+      String? evento;
+      if (isFeriado) {
+        evento = 'FERIADO';
+      } else if (entrada.id.isEmpty && diaSemana != 6 && diaSemana != 7) {
+        evento = 'FALTA';
+      } else if (diaSemana == 6 || diaSemana == 7) {
         evento = 'FOLGA';
       }
 
@@ -172,7 +177,12 @@ class RelatorioService {
             '${horas.toString().padLeft(2, '0')}:${minutos.toString().padLeft(2, '0')}';
       }
 
-      final previsto = getHorarioPrevisto(diaSemana);
+      String previsto;
+      if (isFeriado) {
+        previsto = '00:00';
+      } else {
+        previsto = getHorarioPrevisto(diaSemana);
+      }
 
       String localizacaoEntrada = '';
       if (entrada.id.isNotEmpty) {
@@ -207,6 +217,8 @@ class RelatorioService {
           totalPrevisto: previsto,
           localizacaoEntrada: localizacaoEntrada,
           localizacaoSaida: localizacaoSaida,
+          isFeriado: isFeriado,
+          nomeFeriado: nomeFeriado,
         ),
       );
     }
@@ -267,7 +279,7 @@ class RelatorioService {
       final dataDia = dia.data;
       if (dataDia.isBefore(hoje) || dataDia.isAtSameMomentAs(hoje)) {
         Duration diffDia = Duration.zero;
-        if (dia.diaSemana != 'Sáb' && dia.diaSemana != 'Dom') {
+        if (dia.diaSemana != 'Sáb' && dia.diaSemana != 'Dom' && !dia.isFeriado) {
           diffDia = efetivo - previsto;
           if (diffDia > Duration.zero) {
             totalHorasExtras += diffDia;
@@ -280,9 +292,12 @@ class RelatorioService {
           totalExtras60 += Duration(minutes: extra60);
         }
 
-        // 🔥 EXTRA 100% = HORAS EXTRAS * 1.0 (Domingo)
-        if (dia.diaSemana == 'Dom' && efetivo > Duration.zero) {
-          totalExtras100 += efetivo;
+        // 🔥 EXTRA 100% = HORAS EXTRAS (Domingo ou Feriado)
+        if (dia.isFeriado || dia.diaSemana == 'Dom') {
+          if (efetivo > Duration.zero) {
+            totalExtras100 += efetivo;
+            totalHorasExtrasFimSemana += efetivo;
+          }
         }
 
         totalEfetivo += efetivo;

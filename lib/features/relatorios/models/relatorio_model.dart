@@ -1,15 +1,17 @@
 class RelatorioDiario {
   final DateTime data;
   final String diaSemana;
-  final String? evento; // "FALTA", "FOLGA", null
+  final String? evento; // "FALTA", "FOLGA", "FERIADO", null
   final String entrada;
   final String saidaAlmoco;
   final String retornoAlmoco;
   final String saida;
   final String total;
-  final String totalPrevisto; 
-  final String localizacaoEntrada;  
+  final String totalPrevisto;
+  final String localizacaoEntrada;
   final String localizacaoSaida;
+  final bool isFeriado; // 🔥 NOVO
+  final String? nomeFeriado; // 🔥 NOVO
 
   RelatorioDiario({
     required this.data,
@@ -23,9 +25,10 @@ class RelatorioDiario {
     required this.totalPrevisto,
     required this.localizacaoEntrada,
     required this.localizacaoSaida,
+    this.isFeriado = false,
+    this.nomeFeriado,
   });
 
-  // 🔥 Nome completo do dia da semana
   String get nomeDiaSemana {
     const dias = [
       'Domingo', 'Segunda', 'Terça', 'Quarta',
@@ -34,7 +37,6 @@ class RelatorioDiario {
     return dias[data.weekday - 1];
   }
 
-  // 🔥 Abreviação do dia da semana (3 letras)
   String get diaSemanaAbreviado {
     const dias = [
       'Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'
@@ -50,7 +52,7 @@ class RelatorioMensal {
   final int mes;
   final int ano;
   final List<RelatorioDiario> dias;
-  
+
   // Totais
   final String horasMensais;
   final String totalPrevisto;

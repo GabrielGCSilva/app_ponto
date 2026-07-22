@@ -626,7 +626,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   // 📝 LINHA DA TABELA
-  DataRow _buildLinhaTabela(RelatorioDiario dia) {
+DataRow _buildLinhaTabela(RelatorioDiario dia) {
   final totalPrevisto = dia.totalPrevisto;
   final totalEfetivo = dia.total;
   final diff = _calcularDiferenca(totalEfetivo, totalPrevisto);
@@ -643,9 +643,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   String extra60Dia = '00:00';
   String extra100Dia = '00:00';
 
-  // 🔥 🔥 🔥 CORREÇÃO: EXTRA 60% = HORAS EXTRAS * 0.6 (Segunda a Sábado)
-  if (dia.diaSemana == 'Dom') {
-    // 🔥 EXTRA 100% = HORAS EXTRAS (Domingo)
+  // 🔥 🔥 🔥 CORREÇÃO: FERIADO e DOMINGO = EXTRA 100%
+  // 🔥 SEGUNDA a SÁBADO = EXTRA 60%
+  if (dia.isFeriado || dia.diaSemana == 'Dom') {
+    // 🔥 EXTRA 100% = HORAS EXTRAS (Feriado ou Domingo)
     if (horasExtrasDia != '00:00') {
       extra100Dia = horasExtrasDia;
     }
@@ -678,8 +679,14 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           dia.diaSemana,
           style: TextStyle(
             fontSize: 11,
-            fontWeight: dia.evento == 'FOLGA' ? FontWeight.bold : FontWeight.normal,
-            color: dia.evento == 'FOLGA' ? Colors.green : Colors.black,
+            fontWeight: dia.evento == 'FOLGA' || dia.evento == 'FERIADO'
+                ? FontWeight.bold
+                : FontWeight.normal,
+            color: dia.evento == 'FOLGA'
+                ? Colors.green
+                : dia.evento == 'FERIADO'
+                ? Colors.orange.shade700
+                : Colors.black,
           ),
         ),
       ),
@@ -779,13 +786,15 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   );
 }
 
-  // 🎨 COR DA LINHA
+  // COR DA LINHA
   WidgetStateProperty<Color?> _getCorLinha(String? evento) {
     if (evento == 'FALTA') {
       return WidgetStateProperty.all<Color?>(Colors.red.shade50);
     } else if (evento == 'FOLGA') {
       return WidgetStateProperty.all<Color?>(Colors.green.shade50);
-    }
+    } else if (evento == 'FERIADO') {
+    return WidgetStateProperty.all<Color?>(Colors.yellow.shade100); 
+  }
     return WidgetStateProperty.all<Color?>(null);
   }
 
