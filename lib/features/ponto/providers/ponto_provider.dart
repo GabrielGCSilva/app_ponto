@@ -398,7 +398,19 @@ class PontoProvider extends ChangeNotifier {
     double? latitude,
     double? longitude,
     String? endereco,
+    bool isAdmin = false, // 🔥 NOVO PARÂMETRO
   }) async {
+    // 🔥 SE FOR ADMIN, USA LOCALIZAÇÃO SIMULADA SEM VERIFICAR PERMISSÃO
+    if (isAdmin) {
+      debugPrint('🖥️ [PONTO] Admin: usando localização simulada');
+      return (
+        lat: -23.5505,
+        lng: -46.6333,
+        endereco: 'Desktop - Localização simulada',
+        pendente: false,
+      );
+    }
+
     // 🔥 🔥 🔥 VERIFICAR PERMISSÃO ANTES DE TUDO 🔥 🔥 🔥
     final temPermissao = await localizacaoService.isLocationAvailable();
     if (!temPermissao) {
@@ -705,10 +717,12 @@ class PontoProvider extends ChangeNotifier {
 
       final DateTime dataHoraRegistro = dataHora ?? DateTime.now();
 
+      // 🔥 PASSAR isAdmin PARA _obterLocalizacao
       final localizacao = await _obterLocalizacao(
         latitude: latitude,
         longitude: longitude,
         endereco: endereco,
+        isAdmin: isAdmin, // 🔥 PASSA O PARÂMETRO
       );
 
       final inicioDia = DateTime(
