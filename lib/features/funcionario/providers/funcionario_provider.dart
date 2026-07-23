@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 🔥 ADICIONADO
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/funcionario_model.dart';
 
 class FuncionarioProvider extends ChangeNotifier {
@@ -13,7 +13,7 @@ class FuncionarioProvider extends ChangeNotifier {
   List<Funcionario> get funcionariosInativos =>
       _funcionarios.where((f) => !f.ativo).toList();
 
-  // 🔥 NOVO: Verificar se matrícula já existe
+  // 🔥 Verificar se matrícula já existe
   bool matriculaExiste(String matricula, {String? idIgnorar}) {
     return _funcionarios.any((f) =>
         f.matricula == matricula && (idIgnorar == null || f.id != idIgnorar));
@@ -87,11 +87,11 @@ class FuncionarioProvider extends ChangeNotifier {
         empresaId: empresaId ?? 'N/A',
         isAdmin: isAdmin,
         ativo: true,
-        telefone: '', // Fallback
-        rg: '', // Fallback
-        cpf: '', // Fallback
-        dataNascimento: DateTime.now(), // Fallback
-        dataAdmissao: DateTime.now(), // Fallback
+        telefone: '',
+        rg: '',
+        cpf: '',
+        dataNascimento: DateTime.now(),
+        dataAdmissao: DateTime.now(),
         fotoPath: null,
         dataExclusao: null,
       );
@@ -192,7 +192,8 @@ class FuncionarioProvider extends ChangeNotifier {
     return funcionario.ativo;
   }
 
-  void atualizar(
+  // 🔥 ATUALIZAR FUNCIONÁRIO (AGORA SALVA NO FIRESTORE)
+  Future<void> atualizar(
     String id, {
     String? nome,
     String? email,
@@ -205,7 +206,7 @@ class FuncionarioProvider extends ChangeNotifier {
     DateTime? dataAdmissao,
     bool? ativo,
     String? fotoPath,
-  }) {
+  }) async {
     final index = _funcionarios.indexWhere((f) => f.id == id);
     if (index == -1) return;
 
@@ -228,7 +229,31 @@ class FuncionarioProvider extends ChangeNotifier {
       isAdmin: f.isAdmin,
     );
 
-    _funcionarios[index] = funcionarioAtualizado;
-    notifyListeners();
+    // 🔥 1. SALVAR NO FIRESTORE
+    try {
+      final dados = <String, dynamic>{};
+      if (nome != null) dados['nome'] = nome;
+      if (email != null) dados['email'] = email;
+      if (telefone != null) dados['telefone'] = telefone;
+      if (cargo != null) dados['cargo'] = cargo;
+      if (matricula != null) dados['matricula'] = matricula;
+      if (rg != null) dados['rg'] = rg;
+      if (cpf != null) dados['cpf'] = cpf;
+      if (dataNascimento != null) dados['dataNascimento'] = dataNascimento.toIso8601String();
+      if (dataAdmissao != null) dados['dataAdmissao'] = dataAdmissao.toIso8601String();
+      if (ativo != null) dados['ativo'] = ativo;
+      if (fotoPath != null) dados['fotoPath'] = fotoPath;
+
+      if (dados.isNotEmpty) {
+        await _firestore.collection('funcionarios').doc(id).update(dados);
+      }
+
+      // 🔥 2. ATUALIZAR CACHE LOCAL
+      _funcionarios[index] = funcionarioAtualizado;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ [PROVIDER] Erro ao atualizar funcionário: $e');
+      rethrow;
+    }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/localizacao_service.dart';
 import '../providers/ponto_provider.dart';
@@ -86,6 +87,11 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/dashboard'),
+          tooltip: 'Voltar ao Dashboard',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -123,6 +129,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                       ),
                       const SizedBox(height: 16),
 
+                      // 🔥 DROPDOWN FUNCIONÁRIO COM ELLIPSIS
                       DropdownButtonFormField<String>(
                         decoration: const InputDecoration(
                           labelText: 'Funcionário *',
@@ -137,7 +144,15 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
                         items: funcionarioProvider.funcionarios.map((f) {
                           return DropdownMenuItem(
                             value: f.id,
-                            child: Text(f.nome),
+                            child: Container(
+                              constraints: const BoxConstraints(maxWidth: 300),
+                              child: Text(
+                                f.nome,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
                           );
                         }).toList(),
                         onChanged: (value) {
@@ -457,6 +472,7 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
     );
   }
 
+  // 🔥 CARD DE REGISTRO COM ELLIPSIS
   Widget _buildRegistroCard(RegistroPonto registro) {
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
@@ -467,13 +483,20 @@ class _RegistroPontoAdminPageState extends State<RegistroPontoAdminPage> {
           backgroundColor: registro.tipo.color.withValues(alpha: 0.2),
           child: Icon(registro.tipo.icon, color: registro.tipo.color, size: 16),
         ),
-        title: Text(
-          '${registro.funcionarioNome} - ${registro.tipo.label}',
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        title: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Text(
+            '${registro.funcionarioNome} - ${registro.tipo.label}',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         subtitle: Text(
           '📍 ${registro.endereco}',
           style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,

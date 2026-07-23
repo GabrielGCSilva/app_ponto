@@ -523,35 +523,36 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
 
   // ============ MÉTODOS DE EDIÇÃO ============
   void _salvarEdicao() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
-    if (_dataNascimento == null || _dataAdmissao == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Preencha todas as datas'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+  if (_dataNascimento == null || _dataAdmissao == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Preencha todas as datas'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    return;
+  }
 
-    // 🔥 BLOQUEAR AUTO-DESATIVAÇÃO VIA EDIÇÃO
-    if (_isCurrentUser && !_ativo) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ Você não pode desativar a si mesmo!'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+  // 🔥 BLOQUEAR AUTO-DESATIVAÇÃO VIA EDIÇÃO
+  if (_isCurrentUser && !_ativo) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('❌ Você não pode desativar a si mesmo!'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
 
-    final messenger = ScaffoldMessenger.of(context);
-    final provider = context.read<FuncionarioProvider>();
+  final messenger = ScaffoldMessenger.of(context);
+  final provider = context.read<FuncionarioProvider>();
 
-    final funcionarioAtualizado = Funcionario(
-      id: _funcionario.id,
-      empresaId: _funcionario.empresaId,
+  try {
+    // 🔥 AGORA COM AWAIT (porque o método agora é Future)
+    await provider.atualizar(
+      _funcionario.id,
       nome: _nomeController.text,
       email: _emailController.text,
       telefone: _telefoneController.text,
@@ -565,46 +566,33 @@ class _FuncionarioDetalhesPageState extends State<FuncionarioDetalhesPage> {
       fotoPath: _fotoPath ?? _funcionario.fotoPath,
     );
     
-    try {
-      provider.atualizar(
-        _funcionario.id,
-        nome: funcionarioAtualizado.nome,
-        email: funcionarioAtualizado.email,
-        telefone: funcionarioAtualizado.telefone,
-        cargo: funcionarioAtualizado.cargo,
-        matricula: funcionarioAtualizado.matricula,
-        rg: funcionarioAtualizado.rg,
-        cpf: funcionarioAtualizado.cpf,
-        dataNascimento: funcionarioAtualizado.dataNascimento,
-        dataAdmissao: funcionarioAtualizado.dataAdmissao,
-        ativo: funcionarioAtualizado.ativo,
-        fotoPath: funcionarioAtualizado.fotoPath,
-      );
-      
-      if (mounted) {
-        setState(() {
-          _isEditing = false;
-          _funcionario = funcionarioAtualizado;
-        });
+    // 🔥 RECARREGAR O CACHE PARA GARANTIR CONSISTÊNCIA
+    await provider.carregarFuncionarios();
+    
+    if (mounted) {
+      setState(() {
+        _isEditing = false;
+        _carregarFuncionario();
+      });
 
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Funcionário atualizado com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Erro ao atualizar: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('✅ Funcionário atualizado com sucesso!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('❌ Erro ao atualizar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
+}
 
   // ============ BUILD ============
   @override

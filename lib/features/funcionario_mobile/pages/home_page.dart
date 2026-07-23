@@ -34,7 +34,7 @@ class _HomePageState extends State<HomePage>
   final AuthService _authService = AuthService();
 
   TipoPonto? _tipoSelecionado;
-  bool _registrando = false;
+  final bool _registrando = false;
 
   // 🔥 CENTRO PADRÃO (SÃO PAULO) - FIXO
   static const LatLng _centroPadrao = LatLng(-23.5505, -46.6333);
