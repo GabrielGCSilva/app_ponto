@@ -209,7 +209,7 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('🔐 Autenticação'),
+        title: const Text('🔐 Autenticação'),
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -236,6 +236,7 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
             ),
             const SizedBox(height: 24),
 
+            // 🔥 CONTAINER DO FUNCIONÁRIO - CORRIGIDO COM ELLIPSIS
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -244,6 +245,7 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
                 border: Border.all(color: widget.tipoPonto.color.withValues(alpha: 0.3)),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Icon(
                     widget.tipoPonto.icon,
@@ -252,6 +254,7 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
+                    flex: 2,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -273,11 +276,26 @@ class _MetodoAutenticacaoPageState extends State<MetodoAutenticacaoPage> {
                       ],
                     ),
                   ),
-                  Text(
-                    widget.funcionarioNome,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
+                  // 🔥 SEPARADOR
+                  Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.grey.shade300,
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  // 🔥 NOME DO FUNCIONÁRIO COM ELLIPSIS
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      widget.funcionarioNome,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
                     ),
                   ),
                 ],
